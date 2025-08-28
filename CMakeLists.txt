@@ -1,47 +1,51 @@
 cmake_minimum_required(VERSION 3.12)
 project(RocketSimulation)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find JSBSim
-find_path(JSBSIM_INCLUDE_DIR 
-    NAMES FGFDMExec.h
-    PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/jsbsim/src
-        /usr/local/include/JSBSim
-        /usr/include/JSBSim
-    PATH_SUFFIXES src
-)
+#-----------------------------
+# JSBSim library configuration
+#-----------------------------
+set(JSBSIM_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(JSBSIM_LIBRARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 find_library(JSBSIM_LIBRARY
-    NAMES JSBSim jsbsim
-    PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/external/jsbsim/build/src
-        /usr/local/lib
-        /usr/lib
+    NAMES JSBSim
+    PATHS "${JSBSIM_LIBRARY_DIR}"
 )
 
-if(JSBSIM_INCLUDE_DIR AND JSBSIM_LIBRARY)
-    message(STATUS "Found JSBSim: ${JSBSIM_LIBRARY}")
-    message(STATUS "JSBSim headers: ${JSBSIM_INCLUDE_DIR}")
-else()
-    message(FATAL_ERROR "JSBSim not found. Please build JSBSim first.")
+if(NOT JSBSIM_LIBRARY)
+    message(FATAL_ERROR "JSBSim library not found. Build JSBSim first.")
 endif()
 
-# Create the executable
-add_executable(rocket_sim rocket_sim.cpp)
+message(STATUS "JSBSim library: ${JSBSIM_LIBRARY}")
+message(STATUS "JSBSim include dir: ${JSBSIM_INCLUDE_DIR}")
 
-# Link JSBSim
+# -----------------------------
+# Build rocket_sim
+# -----------------------------
+add_executable(rocket_sim rocket_sim.cpp)
 target_include_directories(rocket_sim PRIVATE ${JSBSIM_INCLUDE_DIR})
 target_link_libraries(rocket_sim ${JSBSIM_LIBRARY})
 
-# Copy aircraft configuration to build directory
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft 
+# -----------------------------
+# Build rocket_sim_subscale
+# -----------------------------
+add_executable(rocket_sim_subscale rocket_sim_subscale.cpp)
+target_include_directories(rocket_sim_subscale PRIVATE ${JSBSIM_INCLUDE_DIR})
+target_link_libraries(rocket_sim_subscale ${JSBSIM_LIBRARY})
+
+# -----------------------------
+# Copy aircraft config
+# -----------------------------
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# Set runtime path for JSBSim
+# -----------------------------
+# Runtime path for shared libraries
+# -----------------------------
 if(UNIX AND NOT APPLE)
-    set_target_properties(rocket_sim PROPERTIES
-        INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set_target_properties(rocket_sim PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set_target_properties(rocket_sim_subscale PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
