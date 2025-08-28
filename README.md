@@ -1,5 +1,5 @@
 # JSBSim Rocket Simulation
-
+# This assumes you are using Windows with WSL
 This project simulates a small suborbital amateur rocket using JSBSim flight dynamics engine.
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
@@ -40,7 +40,7 @@ This project simulates a small suborbital amateur rocket using JSBSim flight dyn
 
 ## Build Requirements
 
-- JSBSim library and headers
+- JSBSim library and headers ([Clone This Repository](https://github.com/jsbsim-team/jsbsim/tree/83e3df2c49c13eae78ab7853848cdd9e02c6c5ac) in the external directory)
 - C++ compiler with C++11 support
 - CMake (optional)
 
@@ -52,6 +52,22 @@ This project simulates a small suborbital amateur rocket using JSBSim flight dyn
 
 ## Running the Simulation
 
+Before you run the simulation, make sure you add the jsbsim path to your terminal so that the object file that was compiled can run
+
+```bash
+nano ~/.bashrc
+```
+
+Add this to the end of the bashrc profile
+```bash
+export LD_LIBRARY_PATH=/home/<user>/jsbsim-rocket-test/external/jsbsim/build/src:$LD_LIBRARY_PATH
+```
+
+Apply the changes to the shell
+```bash
+source ~/.bashrc
+```
+To run the simulation
 ```bash
 ./build/rocket_sim
 ```
