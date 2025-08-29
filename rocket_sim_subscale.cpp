@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
     // get the name of the aircraft from the command line arguments, defaulting
     // to `rocket` if not provided
-    std::string aircraftName = "rocket_fry";
+    std::string aircraftName = "rocket_fry"; 
 
     if (argc == 2) {
         aircraftName = argv[1];
@@ -72,8 +72,8 @@ int main(int argc, char* argv[]) {
     fdmExec->RunIC();
     
     // Enable realistic atmospheric turbulence and wind for final testing
-    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);      // Moderate turbulence
-    fdmExec->SetPropertyValue("atmosphere/turb-gain", 1.0);      // Normal gain
+    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0);      // Moderate turbulence
+    fdmExec->SetPropertyValue("atmosphere/turb-gain", 0);      // Normal gain
     fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 4.4); // 3 mph north wind (4.4 ft/s)
     fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
     fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
@@ -103,9 +103,9 @@ int main(int argc, char* argv[]) {
     double initial_longitude = -122.0; // Launch longitude
     double initial_altitude = 10.5;   // Launch altitude
     
-    std::cout << "Starting L1720 rocket simulation - real manufacturer thrust curve data" << std::endl;
-    std::cout << "Real L1720: 437.4 lbf peak thrust, 2.1s burn, regressive profile" << std::endl;
-    std::cout << "Expected apogee from manufacturer: 3812 ft" << std::endl;
+    std::cout << "Starting I470 rocket simulation - real manufacturer thrust curve data" << std::endl;
+    std::cout << "Real I470: 124.81 lbf peak thrust, 1.1s burn, neutral profile" << std::endl;
+    std::cout << "Expected apogee from past flights (no ACS): 970 ft" << std::endl;
     std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
 
     float liftoff_threshold_agl = 10.0f;
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Debug output for engine state during motor burn phase
-        if (motor_ignited && time < 3.0) {  // Shortened from 5.0s to cover the 2.1s burn + coast
+        if (motor_ignited && time < 3.0) {  // Shortened from 5.0s to cover the 1.1s burn + coast
             if (time - ignition_time < 0.2 || fmod(time, 0.5) < 0.01) {  // Show for first 0.2s, then every 0.5s
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 double throttle = fdmExec->GetFCS()->GetThrottlePos(0);
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
             
-            if (propellant_remaining < 0.1 || burn_time > 2.2) {  // Shut down when fuel low or after 2.2s (real L1720 burn time)
+            if (propellant_remaining < 0.1 || burn_time > 1.1) {  // Shut down when fuel low or after 1.1s (real I470 burn time)
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 engine->SetRunning(false);
                 fdmExec->GetFCS()->SetThrottleCmd(0, 0.0);

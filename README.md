@@ -60,7 +60,7 @@ nano ~/.bashrc
 
 Add this to the end of the bashrc profile
 ```bash
-export LD_LIBRARY_PATH=/home/<user>/jsbsim-rocket-test/external/jsbsim/build/src:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/home/<user>/jsbsim-rocket/external/jsbsim/build/src:$LD_LIBRARY_PATH
 ```
 
 Apply the changes to the shell
