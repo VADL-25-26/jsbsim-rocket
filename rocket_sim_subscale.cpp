@@ -74,13 +74,13 @@ int main(int argc, char* argv[]) {
     // Enable realistic atmospheric turbulence and wind for final testing
     fdmExec->SetPropertyValue("atmosphere/turb-rate", 0);      // Moderate turbulence
     fdmExec->SetPropertyValue("atmosphere/turb-gain", 0);      // Normal gain
-    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 4.4); // 3 mph north wind (4.4 ft/s)
+    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0); // 3 mph north wind (4.4 ft/s)
     fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
     fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
     
     // Debug: Check current wind conditions
     std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
-    std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (3 mph)" << std::endl;
+    std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (0 mph)" << std::endl;
     std::cout << "Wind East:  " << fdmExec->GetPropertyValue("atmosphere/wind-east-fps") << " fps" << std::endl;
     std::cout << "Wind Down:  " << fdmExec->GetPropertyValue("atmosphere/wind-down-fps") << " fps" << std::endl;
     std::cout << "Wind Mag:   " << fdmExec->GetPropertyValue("atmosphere/wind-mag-fps") << " fps" << std::endl;
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
             
-            if (propellant_remaining < 0.1 || burn_time > 1.1) {  // Shut down when fuel low or after 1.1s (real I470 burn time)
+            if (burn_time > 1.1) {  // Shut down after 1.1s (real I470 burn time)
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 engine->SetRunning(false);
                 fdmExec->GetFCS()->SetThrottleCmd(0, 0.0);

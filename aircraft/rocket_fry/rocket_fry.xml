@@ -126,7 +126,7 @@
    <ixx unit="SLUG*FT2">  0.0109  </ixx>  <!-- Roll inertia for 4" diameter rocket (much smaller) -->
    <iyy unit="SLUG*FT2">  1.148    </iyy>   <!-- Pitch/Yaw inertia for 68" rocket (much smaller) -->
    <izz unit="SLUG*FT2">  1.148     </izz>   <!-- Pitch/Yaw inertia for 68" rocket (much smaller) -->
-   <emptywt unit="LBS" >  13.455 </emptywt>  <!-- Dry mass of rocket (14 - 0.545 = 13.455 lbs) -->
+   <emptywt unit="LBS" >  12.9 </emptywt>  <!-- No motor mass of rocket from openrocket -->
    <location name="CG" unit="FT">  <!-- Center of Gravity at 36.808" -->
      <x> 3.067     </x>
      <y> 0.00     </y>
