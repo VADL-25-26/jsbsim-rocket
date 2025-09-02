@@ -33,3 +33,4 @@
 build
 
 env/
+rocket_trajectory.csv
