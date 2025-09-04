@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Simple 3D Rocket Trajectory Plotter
-Uses only built-in Python libraries + matplotlib
+Simple 3D Rocket Trajectory Plotter (No Drogue)
 """
 
 import csv
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -30,7 +31,6 @@ def plot_rocket_trajectory(csv_file='rocket_trajectory.csv'):
     z_ft = [float(row['Z_ft']) for row in data]
     altitude = [float(row['Altitude']) for row in data]
     vertical_velocity = [float(row['Vertical_Velocity']) for row in data]
-    drogue = [int(row['Drogue_Deployed']) for row in data]
     main = [int(row['Main_Deployed']) for row in data]
     
     # Create figure with subplots
@@ -61,13 +61,7 @@ def plot_rocket_trajectory(csv_file='rocket_trajectory.csv'):
     ax2.axhline(y=max(z_ft), color='r', linestyle='--', alpha=0.7, label=f'Max Alt: {max(z_ft):.0f} ft')
     
     # Mark parachute deployments
-    drogue_time = None
     main_time = None
-    for i in range(1, len(drogue)):
-        if drogue[i] == 1 and drogue[i-1] == 0:
-            drogue_time = time[i]
-            ax2.axvline(x=drogue_time, color='orange', linestyle='--', alpha=0.7, label='Drogue Deploy')
-            break
     
     for i in range(1, len(main)):
         if main[i] == 1 and main[i-1] == 0:
@@ -107,9 +101,6 @@ def plot_rocket_trajectory(csv_file='rocket_trajectory.csv'):
     print(f"Max Velocity: {max(vertical_velocity):.1f} ft/s")
     print(f"Horizontal Drift: {horizontal_dist[-1]:.1f} ft")
     
-    if drogue_time:
-        drogue_idx = time.index(drogue_time)
-        print(f"Drogue Deploy: {drogue_time:.1f} s at {z_ft[drogue_idx]:.0f} ft")
     if main_time:
         main_idx = time.index(main_time)
         print(f"Main Deploy: {main_time:.1f} s at {z_ft[main_idx]:.0f} ft")
@@ -117,4 +108,4 @@ def plot_rocket_trajectory(csv_file='rocket_trajectory.csv'):
     plt.show()
 
 if __name__ == "__main__":
-    plot_rocket_trajectory() 
+    plot_rocket_trajectory()

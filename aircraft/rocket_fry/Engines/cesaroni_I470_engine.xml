@@ -8,7 +8,7 @@
   - Total impulse: 540 Ns (121 lbf⋅s)  
   - Burn time: 1.14seconds 
   - Peak thrust: 555.2 N (124.8 lbf)
-  - Profile: Neutral curve (slight peak, sslight dip, flat cost, decline)
+  - Profile: Neutral curve
   - Propellant mass: 247.2 g (0.545 lbs, using 0.545 lbs in sim)
   - ISP: ~223 seconds
   - Real thrust curve data from manufacturer graph
@@ -16,7 +16,7 @@
 
 <rocket_engine name="cesaroni_I470_engine">
     <isp>223.0</isp>
-    <builduptime>0.1</builduptime>
+    <builduptime>0.001</builduptime>
     <variation>
         <thrust>0.00</thrust>
         <total_isp>0.00</total_isp>
@@ -61,7 +61,6 @@
             1.09974     7.364338184 <!-- 1.100s: 32.8 N -->
             1.11024     0           <!-- 1.110s: 0 N -->
             1.14000     0           <!-- 1.140s: 0 N -->
-            1.50000     0           <!-- 1.150s: 0 N (Extended safety) -->
       </tableData>
     </thrust_table>
 </rocket_engine> 
