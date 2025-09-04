@@ -94,7 +94,7 @@
     max. turn rate:     0.05 deg/s
 -->
 
- <metrics> <!-- change values in <aerodynamics> below -->
+ <metrics>
    <wingarea  unit="FT2"> 0.0873     </wingarea>  <!-- Pi * (0.167)^2 for 4" diameter rocket body -->
    <wingspan  unit="FT" > 0.0      </wingspan>   <!-- No wings on rocket -->
    <wing_incidence unit="DEG"> 0.00 </wing_incidence>
@@ -103,8 +103,11 @@
    <htailarm  unit="FT" > 1.849     </htailarm>   <!-- Fin arm: 59" - 36.808" = 22.192" = 1.849 ft -->
    <vtailarea  unit="FT2"> 0.432     </vtailarea>  <!-- Total fin area: 2 fins × 0.216 ft² each -->
    <vtailarm  unit="FT" > 1.849     </vtailarm>    <!-- Fin arm: 59" - 36.808" = 22.192" = 1.849 ft -->
-   <acsarea unit="FT2"> 0.333 </acsarea> <!-- ACS fin area: 4 x 12in^2 = 0.333 ft^2-->
-   <acsarm unit="FT"> 0.834 </acsarm> <!--ACS arm: 48.61 - 36.808" = 10.002" =  0.834 ft -->
+
+   <!-- use this syntax for custom parameters-->
+   <property value="0.333">metrics/acsarea</property> <!-- ACS fin area: 4 x 12in^2 = 0.333 ft^2-->
+   <property value="0.834">metrics/acsarm</property> <!--ACS arm: 48.61 - 36.808" = 10.002" =  0.834 ft -->
+
    <location name="AERORP" unit="FT">  <!-- Center of Pressure at 46.926" from OpenRocket -->
      <x> 3.9105     </x>  <!-- 46.926" = 3.9105 ft from nose -->
      <y> 0.00     </y>
@@ -121,6 +124,9 @@
      <z>     0.0 </z>
    </location>
  </metrics>
+
+
+
 
  <mass_balance>
    <ixx unit="SLUG*FT2">  0.0109  </ixx>  <!-- Roll inertia for 4" diameter rocket (much smaller) -->
@@ -174,7 +180,6 @@
 
  <system file="Conventional Controls.xml"/>
  <system file="Landing Gear.xml"/>
- <!-- <system file="Rescue Chute (Ballistic Recovery System).xml"/> -->
 
  <flight_control name="FCS: My Aircraft">
    <channel name="Landing Gear">
@@ -185,7 +190,7 @@
  </flight_control>
 
  <aerodynamics>
-
+ <property value="0.38">aero/rocketcd</property> <!-- Minimum rocket CD -->
   <axis name="LIFT">
 
     <!-- Lift above 0.85 and below -0.85 is generalised -->
@@ -254,7 +259,7 @@
        <product>
           <property>aero/qbar-psf</property>
           <property>metrics/Sw-sqft</property>
-          <value> 0.38 </value>  <!-- Lower end of CFD range 0.38-0.47 for actual performance -->
+          <property>aero/rocketcd</property>  <!-- Lower end of CFD range 0.38-0.47 for actual performance -->
        </product>
     </function>
 
@@ -446,8 +451,8 @@
       <description>Pitch restoring moment from ACS fins</description>
       <product>
          <property>aero/qbar-psf</property>
-         <value>0.333</value>      <!-- ACS fin area in ft² -->
-         <value>0.834</value>      <!-- Distance from CG in ft -->
+         <property>metrics/acsarea</property>  <!-- ACS fin area in ft² -->
+         <property>metrics/acsarm</property> <!-- Distance from CG in ft -->
          <property>aero/alpha-rad</property>
          <value>-1.0</value>       <!-- Restoring moment coefficient -->
       </product>
@@ -457,8 +462,8 @@
       <description>Pitch damping from ACS fins</description>
       <product>
          <property>aero/qbar-psf</property>
-         <value>0.333</value>
-         <value>0.834</value>
+         <property>metrics/acsarea</property>  <!-- ACS fin area in ft² -->
+         <property>metrics/acsarm</property> <!-- Distance from CG in ft -->
          <property>aero/ci2vel</property>
          <property>velocities/q-aero-rad_sec</property>
          <value>-0.2</value>
@@ -531,8 +536,8 @@
       <description>Roll damping from ACS fins</description>
       <product>
          <property>aero/qbar-psf</property>
-         <value>0.333</value>
-         <value>0.167</value>  <!-- Rocket radius to fin tip -->
+         <property>metrics/acsarea</property>  <!-- ACS fin area in ft² -->
+         <value>0.167</value>                  <!-- Rocket radius to fin tip -->
          <property>aero/bi2vel</property>
          <property>velocities/p-aero-rad_sec</property>
          <value>-0.2</value>
@@ -616,8 +621,8 @@
       <description>Yaw restoring moment from ACS fins</description>
       <product>
          <property>aero/qbar-psf</property>
-         <value>0.333</value>
-         <value>0.834</value>
+         <property>metrics/acsarea</property>  <!-- ACS fin area in ft² -->
+         <property>metrics/acsarm</property> <!-- Distance from CG in ft -->
          <property>aero/beta-rad</property>
          <value>-1.0</value>
       </product>
@@ -628,18 +633,20 @@
  </aerodynamics>
 
  <external_reactions>
-  <property value="0">external_reactions/drogue_chute/drag_area</property>
+ 
   <property value="0">external_reactions/main_chute/drag_area</property>
-
+  <property value="0">external_reactions/main_chute/cd</property>
+  
   <force name="main_chute" frame="WIND">
    <function>
     <product>
      <property>aero/qbar-psf</property>
      <property>external_reactions/main_chute/drag_area</property>
+     <property>external_reactions/main_chute/cd</property>
     </product>
    </function>
    <location unit="FT">  <!-- Nose of rocket for main chute -->
-    <x> 1.96 </x> <!-- parachue is 23.5 in from nose-->
+    <x> 1.96 </x> <!-- parachute is 23.5 in from nose-->
     <y> 0 </y>
     <z> 0 </z>
    </location>

@@ -16,7 +16,7 @@
 
 <rocket_engine name="cesaroni_I470_engine">
     <isp>223.0</isp>
-    <builduptime>0.001</builduptime>
+    <builduptime>0.0001</builduptime>
     <variation>
         <thrust>0.00</thrust>
         <total_isp>0.00</total_isp>

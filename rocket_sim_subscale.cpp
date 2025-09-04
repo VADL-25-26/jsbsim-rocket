@@ -12,6 +12,7 @@
 #include <models/FGFCS.h>
 #include <models/propulsion/FGTank.h>
 #include <models/FGAuxiliary.h>
+#include "RK4.h"
 
 int main(int argc, char* argv[]) {
     // Create an instance of the JSBSim flight dynamics model executor
@@ -63,6 +64,10 @@ int main(int argc, char* argv[]) {
     fdmExec->SetPropertyValue("fcs/aileron-cmd-norm", 0.0);
     fdmExec->SetPropertyValue("fcs/rudder-cmd-norm", 0.0);
 
+    // initialize variables for ACS
+    bool acs_deployed = false;
+    double goal_apogee = 800; 
+
     // Initialize variables for parachute deployment
     bool main_deployed = false;
     double max_altitude = 0.0;
@@ -94,14 +99,19 @@ int main(int argc, char* argv[]) {
     // Initialize motor ignition sequence
     bool motor_ignited = false;
     bool engine_shutdown = false;  // Track engine shutdown state
-    double ignition_time = 0.05; // Quick ignition after simulation start
+    double ignition_time = 0.001; // Quick ignition after simulation start
     double total_impulse = 0.0;  // Track total impulse delivered
     double last_time = 0.0;      // For impulse integration
+    double shutdown_time = 0.0;
     
     // Store initial position for 3D trajectory tracking
     double initial_latitude = 37.0;  // Launch latitude
     double initial_longitude = -122.0; // Launch longitude
     double initial_altitude = 10.5;   // Launch altitude
+
+    // Initialize RK4 model
+    Rk4 predictor(100, 3, 13.455, 0.008); // give metric input for area
+    double predicted_apogee = 0;
     
     std::cout << "Starting I470 rocket simulation - real manufacturer thrust curve data" << std::endl;
     std::cout << "Real I470: 124.81 lbf peak thrust, 1.1s burn, neutral profile" << std::endl;
@@ -140,12 +150,12 @@ int main(int argc, char* argv[]) {
         }
 
         // Simple velocity debugging during motor burn only
-        if (motor_ignited && time < 1.0 && fmod(time, 0.5) < 0.01) {
+        /* if (motor_ignited && time < 1.0 && fmod(time, 0.5) < 0.01) {
             std::cout << "DEBUG: Altitude=" << altitude << "ft, Vertical_vel=" << vertical_velocity << "ft/s" << std::endl;
-        }
+        } */
 
         // Debug angular orientation during early flight
-        if (time < 5.0 && fmod(time, 0.2) < 0.01) {
+        /* if (time < 5.0 && fmod(time, 0.2) < 0.01) {
             double pitch_deg = fdmExec->GetPropagate()->GetEuler(2) * 180.0 / 3.14159; // Theta (pitch)
             double yaw_deg = fdmExec->GetPropagate()->GetEuler(3) * 180.0 / 3.14159;   // Psi (yaw) 
             double roll_deg = fdmExec->GetPropagate()->GetEuler(1) * 180.0 / 3.14159;  // Phi (roll)
@@ -153,7 +163,7 @@ int main(int argc, char* argv[]) {
             std::cout << "ORIENTATION t=" << std::fixed << std::setprecision(2) << time 
                       << "s: Pitch=" << std::setprecision(1) << pitch_deg 
                       << "°, Yaw=" << yaw_deg << "°, Roll=" << roll_deg << "°" << std::endl;
-        }
+        } */
 
         // Ignite motor at scheduled time using throttle setting for solid rockets
         if (!motor_ignited && time >= ignition_time) {
@@ -183,7 +193,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Debug output for engine state during motor burn phase
-        if (motor_ignited && time < 3.0) {  // Shortened from 5.0s to cover the 1.1s burn + coast
+        /* if (motor_ignited && time < 3.0) {  // Shortened from 5.0s to cover the 1.1s burn + coast
             if (time - ignition_time < 0.2 || fmod(time, 0.5) < 0.01) {  // Show for first 0.2s, then every 0.5s
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 double throttle = fdmExec->GetFCS()->GetThrottlePos(0);
@@ -203,7 +213,7 @@ int main(int argc, char* argv[]) {
                           << "Burn=" << std::setprecision(1) << burn_percentage << "%, "
                           << "Impulse=" << std::setprecision(1) << total_impulse << "lbf⋅s" << std::endl;
             }
-        }
+        } */
         
         // Continue impulse integration even after debug output stops
         if (motor_ignited && !engine_shutdown) {
@@ -221,7 +231,7 @@ int main(int argc, char* argv[]) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
             
-            if (burn_time > 1.1) {  // Shut down after 1.1s (real I470 burn time)
+            if (burn_time >= 1.1) {  // Shut down after 1.1s (real I470 burn time)
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 engine->SetRunning(false);
                 fdmExec->GetFCS()->SetThrottleCmd(0, 0.0);
@@ -233,6 +243,8 @@ int main(int argc, char* argv[]) {
                 std::cout << "Engine shutdown at t=" << time << "s (fuel=" << propellant_remaining 
                           << "lbs, burn_time=" << burn_time << "s)" << std::endl;
                 std::cout << "TOTAL IMPULSE DELIVERED: " << total_impulse << " lbf⋅s (expected: 822 lbf⋅s)" << std::endl;
+
+                shutdown_time = time;
             }
         }
 
@@ -252,23 +264,33 @@ int main(int argc, char* argv[]) {
             std::cout << "Apogee reached at " << max_altitude << " ft (current alt: " << altitude << " ft)" << std::endl;
         }
 
+        // Deploy ACS when predicted apogee exceeds goal apogee
+        if (!acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
+            fdmExec->SetPropertyValue("aero/rocketcd", 3);
+            acs_deployed = true;
+            std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
+
+        }
         
         // Deploy main chute AT APOGEE (per requirements) 
         if (reached_apogee && !main_deployed) {
-            fdmExec->SetPropertyValue("external_reactions/main_chute/drag_area", 50.0); // Larger main chute
+            
+            // overwrite parahute specs - im not sure why they can't be put into rocket_fry.xml w/o fucking things up
+            fdmExec->SetPropertyValue("external_reactions/main_chute/drag_area", 12.566); 
+            fdmExec->SetPropertyValue("external_reactions/main_chute/cd", 2.2); 
             main_deployed = true;
             std::cout << "Main chute deployed at " << altitude << " ft" << std::endl;
         }
 
         // Print and save trajectory data with improved output formatting
-        if (fmod(time, 0.2) < 0.01) {  // Print every 0.2 seconds for detailed tracking
-            std::cout << std::fixed << std::setprecision(1);
-            std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s";
+        if (fmod(time, 0.5) < 0.01) {  // Print every 0.1 seconds for detailed tracking
+            std::cout << std::fixed << std::setprecision(3);
+            std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s, Pred. Apogee: " << predicted_apogee << "ft";
             
             // Show flight phase information
             if (!did_liftoff) {
                 std::cout << " [ON PAD]";
-            } else if (motor_ignited && time < 4.0) {
+            } else if (motor_ignited && time < 1.1) {
                 std::cout << " [POWERED FLIGHT]";
             } else if (!reached_apogee) {
                 std::cout << " [COASTING UP]";
@@ -289,7 +311,12 @@ int main(int argc, char* argv[]) {
         double x_pos = (current_lat - initial_latitude) * 364000.0;  // North-South in feet
         double y_pos = (current_lon - initial_longitude) * 364000.0 * cos(initial_latitude * 3.14159265359 / 180.0);  // East-West in feet
         double z_pos = current_alt - initial_altitude;  // Height above launch point in feet
-        
+
+        // update RK4
+        /* if (engine_shutdown){
+            predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
+        } */
+        predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
         outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," << altitude << "," << vertical_velocity << ","  << main_deployed << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
@@ -298,7 +325,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Add detailed monitoring during descent phase
-        if (reached_apogee && altitude < 700.0 && time > 11.0) {
+        /* if (reached_apogee && altitude < 700.0 && time > 11.0) {
             if (fmod(time, 0.1) < 0.01) {  // Every 0.1 seconds during critical descent
                 double alpha = fdmExec->GetAuxiliary()->Getalpha() * 180.0/3.14159; // Convert to degrees
                 double beta = fdmExec->GetAuxiliary()->Getbeta() * 180.0/3.14159;
@@ -311,7 +338,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "  Alpha=" << alpha << "deg, Beta=" << beta 
                           << "deg, Mach=" << mach << ", Qbar=" << qbar << "psf" << std::endl;
             }
-        }
+        } */
     }
 
     std::cout << "Simulation complete." << std::endl;
