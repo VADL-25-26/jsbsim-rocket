@@ -59,8 +59,7 @@ def plot_rocket_trajectory(csv_file='rocket_trajectory.csv'):
     ax2 = fig.add_subplot(222)
     ax2.plot(time, z_ft, 'b-', linewidth=2, label='Altitude')
     ax2.axhline(y=max(z_ft), color='r', linestyle='--', alpha=0.7, label=f'Max Alt: {max(z_ft):.0f} ft')
-    
-    # Mark main parachute deployment
+    # Mark parachute deployments
     main_time = None
     for i in range(1, len(main)):
         if main[i] == 1 and main[i-1] == 0:

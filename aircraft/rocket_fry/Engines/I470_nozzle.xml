@@ -4,7 +4,7 @@
     File: I470_nozzle.xml
     Description: Nozzle for Cesaroni I470 motor
     
-    Typical 38mm motor nozzle exit diameter: ~0.688"
+    Typical 38mm motor nozzle exit diameter: ~20mm (0.688")
     Nozzle exit area = Pi * (0.688/2)^2 / 144 = 0.00258 ft2
 -->
 
