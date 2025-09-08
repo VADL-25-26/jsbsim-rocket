@@ -118,11 +118,90 @@ source env/bin/activate
 # env\Scripts\activate
 
 # Install dependencies
-pip install pyserial
+pip install -r requirements.txt
 
 # Run trajectory analysis
-python process_npk.py
+python analyze_trajectory.py
+
+# Generate plots
+python plot_simple.py
 
 # Deactivate virtual environment when done
 deactivate
 ```
+
+### Example Output
+
+![CleanShot 2025-05-26 at 17 13 17](https://github.com/user-attachments/assets/fa76638b-1a8d-4b06-a082-6342d4413c31)
+
+```console
+(env) ➜  jsbsim-rocket-test git:(rocket-test) ✗ python analyze_trajectory.py                                                                                                                                                                               [25/05/26| 5:13PM]
+Loaded 8652 data points from rocket_trajectory.csv
+
+==================================================
+🚀 ROCKET TRAJECTORY ANALYSIS
+==================================================
+
+📊 FLIGHT PERFORMANCE:
+  Max Altitude:       3163.0 ft at t=14.6s
+  Max Velocity:        460.1 ft/s at t=2.1s
+  Total Flight Time:    72.1 s
+  Landing Velocity:    -26.1 ft/s
+
+🪂 PARACHUTE DEPLOYMENT:
+  Drogue Deploy:    t=  15.2s at   3157 ft
+  Main Deploy:      t=  53.7s at    489 ft
+
+📍 TRAJECTORY ANALYSIS:
+  Launch Position:   X=0.0 ft, Y=0.0 ft
+  Landing Position:  X=-569.8 ft, Y=  -3.1 ft
+  Horizontal Drift:   569.8 ft
+  Max Drift:          920.6 ft
+
+⬇️  DESCENT RATES:
+  Drogue Descent:     69.4 ft/s
+  Main Descent:       26.9 ft/s
+
+⏱️  FLIGHT PHASES:
+  Powered/Coast:    0.0s - 15.2s (15.2s)
+  Drogue Descent:   15.2s - 53.7s (38.4s)
+  Main Descent:     53.7s - 72.1s (18.4s)
+
+📋 TRAJECTORY SAMPLE (every 10 seconds):
+  Time        X        Y        Z      Vel Phase
+   (s)     (ft)     (ft)     (ft)   (ft/s)
+--------------------------------------------------
+   0.0     -0.0      0.0      0.0     -0.3 Launch
+  10.0   -532.9     -1.3   2817.6    151.2 Launch
+  20.0   -919.8     -3.7   2897.2    -70.4 Drogue
+  30.0   -870.4     -3.7   2175.4    -72.1 Drogue
+  40.0   -799.8     -3.5   1457.9    -71.4 Drogue
+  50.0   -729.0     -3.3    747.8    -70.6 Drogue
+  60.0   -657.2     -3.2    310.1    -26.2 Main
+  70.0   -584.9     -3.2     48.8    -26.1 Main
+  72.1   -569.8     -3.1     -5.7    -26.1 Land
+```
+
+## Aircraft Configuration
+
+The JSBSim aircraft configuration files are located in:
+- `aircraft/rocket/rocket.xml` - Main aircraft definition
+- `aircraft/rocket/Engines/cesaroni_l1720_engine.xml` - Motor thrust curve
+- `aircraft/rocket/Engines/l1720_nozzle.xml` - Nozzle specifications
+
+## Motor Characteristics
+
+The Cesaroni L1720 motor simulation includes:
+- **Total Impulse**: 3660 N⋅s (822 lbf⋅s)
+- **Burn Time**: 2.1 seconds  
+- **Average Thrust**: 391 lbf
+- **Peak Thrust**: 438 lbf (1946 N)
+- **Specific Impulse**: 220 seconds
+- **Propellant Mass**: 3.9 lbs (1755 g)
+- **Thrust Profile**: Regressive curve with peak, dip, buildup, and decline phases
+
+## Recovery System
+
+- **Drogue Chute**: 8 ft² effective drag area, deploys at apogee
+- **Main Chute**: 50 ft² effective drag area, deploys at 500 feet AGL
+- Dual-deployment system ensures controlled descent rate
