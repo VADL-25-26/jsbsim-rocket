@@ -109,7 +109,7 @@
    <property value="0.834">metrics/acsarm</property> <!--ACS arm: 48.61 - 36.808" = 10.002" =  0.834 ft -->
 
    <location name="AERORP" unit="FT">  <!-- Center of Pressure at 46.926" from OpenRocket -->
-     <x> 3.9105     </x>  <!-- 46.926" = 3.9105 ft from nose -->
+     <x> 3.9105   </x>
      <y> 0.00     </y>
      <z> 0.00     </z>
    </location>
@@ -129,10 +129,10 @@
 
 
  <mass_balance>
-   <ixx unit="SLUG*FT2">  0.0109  </ixx>  <!-- Roll inertia for 4" diameter rocket (much smaller) -->
-   <iyy unit="SLUG*FT2">  1.148    </iyy>   <!-- Pitch/Yaw inertia for 68" rocket (much smaller) -->
-   <izz unit="SLUG*FT2">  1.148     </izz>   <!-- Pitch/Yaw inertia for 68" rocket (much smaller) -->
-   <emptywt unit="LBS" >  12.9 </emptywt>  <!-- No motor mass of rocket from openrocket -->
+   <ixx unit="SLUG*FT2">  0.0109  </ixx>  <!-- Roll inertia for 4" diameter rocket -->
+   <iyy unit="SLUG*FT2">  1.148    </iyy>   <!-- Pitch/Yaw inertia for 68" rocket -->
+   <izz unit="SLUG*FT2">  1.148     </izz>   <!-- Pitch/Yaw inertia for 68" rocket -->
+   <emptywt unit="LBS" >  12.855 </emptywt>  <!-- No motor mass of rocket from openrocket -->
    <location name="CG" unit="FT">  <!-- Center of Gravity at 36.808" -->
      <x> 3.067     </x>
      <y> 0.00     </y>
@@ -140,7 +140,7 @@
    </location>
    <pointmass name="Motor">
     <description> Cesaroni I470 motor propellant mass </description>
-    <weight unit="LBS"> 0.545 </weight>  <!-- Wet mass 13.4 - dry mass 12.855  -->
+    <weight unit="LBS"> 0.545 </weight>  <!-- Given mass from manufacturer  -->
     <location name="POINTMASS" unit="FT">  <!-- Motor location at rear -->
      <x> 5.167     </x>  <!-- Around 62" from nose (center of motor)-->
      <y> 0.00     </y>
@@ -190,7 +190,21 @@
  </flight_control>
 
  <aerodynamics>
- <property value="0.38">aero/rocketcd</property> <!-- Minimum rocket CD -->
+ <property value="0">aero/ACSangle</property>  
+
+   <!-- Dynamic CP X-location based on ACS angle -->
+  <function name="aero/CPx">
+    <description>Center of Pressure location vs ACS angle</description>
+    <independentVar lookup="row">aero/ACSangle</independentVar>
+    <table>
+      <tableData> <!-- Center of Pressure at 46.926" from OpenRocket -->
+         0        3.9105        <!-- ACS stowed -->
+         0.7854   3.9105        <!-- ACS deployed (45 deg) -->
+         1.5708   3.9105         <!-- 90 deg -->
+      </tableData>
+    </table>
+  </function>
+
   <axis name="LIFT">
 
     <!-- Lift above 0.85 and below -0.85 is generalised -->
@@ -225,7 +239,7 @@
           <property>aero/ci2vel</property>
           <value> 0.0 </value>  <!-- No lift due to pitch rate for rocket -->
         </product>
-      </function>
+    </function>
 
       <function name="aero/force/Lift_alpha_rate">
         <description>Lift due to alpha rate</description>
@@ -259,7 +273,14 @@
        <product>
           <property>aero/qbar-psf</property>
           <property>metrics/Sw-sqft</property>
-          <property>aero/rocketcd</property>  <!-- Lower end of CFD range 0.38-0.47 for actual performance -->
+          <table>
+            <independentVar lookup="row">aero/ACSangle</independentVar>
+            <tableData>
+            0        0.38         <!-- ACS stowed -->
+            0.7854   3.0          <!-- ACS deployed (45 deg) -->
+            1.5708   5.0          <!-- 90 deg -->
+            </tableData>
+          </table>
        </product>
     </function>
 
@@ -341,15 +362,6 @@
            <property>metrics/Sw-sqft</property>
            <value> 0.02 </value>  <!-- Small fin drag coefficient (0.0873 ft² fins / 0.0873 ft² reference = 1 ratio × 0.02 CD) -->
        </product>
-    </function>
-
-    <function name="aero/force/Drag_ACS">
-      <description>Drag from ACS fins</description>
-      <product>
-         <property>aero/qbar-psf</property>
-         <value>0.333</value>
-         <value>0.02</value>  <!-- small drag coefficient factor -->
-      </product>
     </function>
 
   </axis>
@@ -634,15 +646,21 @@
 
  <external_reactions>
  
-  <property value="0">external_reactions/main_chute/drag_area</property>
-  <property value="0">external_reactions/main_chute/cd</property>
+  <property value="12.566">external_reactions/main_chute/drag_area</property>
+  <property value="0">external_reactions/main_chute/main_open</property>
   
   <force name="main_chute" frame="WIND">
    <function>
     <product>
      <property>aero/qbar-psf</property>
      <property>external_reactions/main_chute/drag_area</property>
-     <property>external_reactions/main_chute/cd</property>
+     <table>
+         <independentVar lookup="row">external_reactions/main_chute/main_open</independentVar>
+         <tableData>
+         0  0
+         1  2.2
+         </tableData>
+      </table>
     </product>
    </function>
    <location unit="FT">  <!-- Nose of rocket for main chute -->

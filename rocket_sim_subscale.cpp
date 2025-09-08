@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     double initial_altitude = 10.5;   // Launch altitude
 
     // Initialize RK4 model
-    Rk4 predictor(100, 3, 13.455, 0.008); // give metric input for area
+    Rk4 predictor(100, 3, 13.455/2.205, 0.008); // give metric inputs, mass is dry mass
     double predicted_apogee = 0;
     
     std::cout << "Starting I470 rocket simulation - real manufacturer thrust curve data" << std::endl;
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
 
         // Deploy ACS when predicted apogee exceeds goal apogee
         if (!acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
-            fdmExec->SetPropertyValue("aero/rocketcd", 3);
+            fdmExec->SetPropertyValue("aero/ACSangle", 45*(M_PI/180)); // set acs to 45 deg
             acs_deployed = true;
             std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
 
@@ -274,10 +274,7 @@ int main(int argc, char* argv[]) {
         
         // Deploy main chute AT APOGEE (per requirements) 
         if (reached_apogee && !main_deployed) {
-            
-            // overwrite parahute specs - im not sure why they can't be put into rocket_fry.xml w/o fucking things up
-            fdmExec->SetPropertyValue("external_reactions/main_chute/drag_area", 12.566); 
-            fdmExec->SetPropertyValue("external_reactions/main_chute/cd", 2.2); 
+            fdmExec->SetPropertyValue("external_reactions/main_chute/main_open", 1); 
             main_deployed = true;
             std::cout << "Main chute deployed at " << altitude << " ft" << std::endl;
         }
