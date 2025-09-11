@@ -77,9 +77,9 @@ int main(int argc, char* argv[]) {
     fdmExec->RunIC();
     
     // Enable realistic atmospheric turbulence and wind for final testing
-    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0);      // Moderate turbulence
-    fdmExec->SetPropertyValue("atmosphere/turb-gain", 0);      // Normal gain
-    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0); // 3 mph north wind (4.4 ft/s)
+    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);      // Moderate turbulence
+    fdmExec->SetPropertyValue("atmosphere/turb-gain", 0.1);      // Normal gain
+    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 10); // 3 mph north wind (4.4 ft/s)
     fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
     fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
     

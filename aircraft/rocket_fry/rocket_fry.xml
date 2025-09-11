@@ -94,7 +94,7 @@
     max. turn rate:     0.05 deg/s
 -->
 
- <metrics>
+ <metrics> 
    <wingarea  unit="FT2"> 0.0873     </wingarea>  <!-- Pi * (0.167)^2 for 4" diameter rocket body -->
    <wingspan  unit="FT" > 0.0      </wingspan>   <!-- No wings on rocket -->
    <wing_incidence unit="DEG"> 0.00 </wing_incidence>
@@ -109,7 +109,7 @@
    <property value="0.834">metrics/acsarm</property> <!--ACS arm: 48.61 - 36.808" = 10.002" =  0.834 ft -->
 
    <location name="AERORP" unit="FT">  <!-- Center of Pressure at 46.926" from OpenRocket -->
-     <x> 3.9105   </x>
+     <x> 3.9105   </x> 
      <y> 0.00     </y>
      <z> 0.00     </z>
    </location>
@@ -190,20 +190,23 @@
  </flight_control>
 
  <aerodynamics>
- <property value="0">aero/ACSangle</property>  
 
-   <!-- Dynamic CP X-location based on ACS angle -->
-  <function name="aero/CPx">
-    <description>Center of Pressure location vs ACS angle</description>
-    <independentVar lookup="row">aero/ACSangle</independentVar>
-    <table>
-      <tableData> <!-- Center of Pressure at 46.926" from OpenRocket -->
-         0        3.9105        <!-- ACS stowed -->
-         0.7854   3.9105        <!-- ACS deployed (45 deg) -->
-         1.5708   3.9105         <!-- 90 deg -->
-      </tableData>
-    </table>
-  </function>
+ 
+  <property value="0">aero/ACSangle</property>  
+
+   <!-- Dynamic CPx location based on ACS angle -->
+   <function name="aero/CPx">
+      <description>Center of Pressure location vs ACS angle</description>
+      <table>
+         <independentVar lookup="row">aero/ACSangle</independentVar>
+         <tableData> <!-- Center of Pressure at 46.926" from OpenRocket -->
+            0        3.9105        <!-- ACS stowed -->
+            0.7854   3.9105        <!-- ACS deployed (45 deg) -->
+            1.5708   3.9105        <!-- 90 deg -->
+         </tableData>
+      </table>
+   </function>
+
 
   <axis name="LIFT">
 
@@ -261,11 +264,11 @@
            <value> 0.0 </value>  <!-- No elevators on rocket -->
        </product>
     </function>
-
   </axis>
 
   <axis name="DRAG">
-
+   
+    
     <!-- CD0 is based on fuselage, wing, horizontal- en vertical tail -->
     <!-- CD for gear (fixed and retractable) is defined below         -->
     <function name="aero/force/Drag_minimum">
