@@ -13,13 +13,15 @@
 #include <models/propulsion/FGTank.h>
 #include <models/FGAuxiliary.h>
 #include "RK4.h"
+#include <iostream>
+#include <asio.hpp>
 
 int main(int argc, char* argv[]) {
     // Create an instance of the JSBSim flight dynamics model executor
     std::unique_ptr<JSBSim::FGFDMExec> fdmExec(new JSBSim::FGFDMExec());
 
-    // Set the simulation to run at 120 Hz
-    fdmExec->Setdt(1.0 / 120.0);
+    // Set the simulation to run at 200 Hz (matching VN100 speed)
+    fdmExec->Setdt(1.0 / 200.0);
 
     // get the name of the aircraft from the command line arguments, defaulting
     // to `rocket` if not provided
@@ -94,7 +96,7 @@ int main(int argc, char* argv[]) {
 
     // Open an output file to save the trajectory data
     std::ofstream outputFile("rocket_trajectory.csv");
-    outputFile << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Main_Deployed\n";
+    outputFile << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Main_Deployed,CGx_in\n";
 
     // Initialize motor ignition sequence
     bool motor_ignited = false;
@@ -108,6 +110,7 @@ int main(int argc, char* argv[]) {
     double initial_latitude = 37.0;  // Launch latitude
     double initial_longitude = -122.0; // Launch longitude
     double initial_altitude = 10.5;   // Launch altitude
+    double cg_x = 0.0;                 // CGx location
 
     // Initialize RK4 model
     Rk4 predictor(100, 3, 13.455/2.205, 0.008); // give metric inputs, mass is dry mass
@@ -299,6 +302,9 @@ int main(int argc, char* argv[]) {
             std::cout << std::endl;
         }
         
+        // find cg-x location
+        cg_x = fdmExec->GetMassBalance()->GetXYZcg(1);
+
         // Calculate 3D position relative to launch point
         double current_lat = fdmExec->GetPropagate()->GetLocation().GetLatitudeDeg();
         double current_lon = fdmExec->GetPropagate()->GetLocation().GetLongitudeDeg();
@@ -309,17 +315,16 @@ int main(int argc, char* argv[]) {
         double y_pos = (current_lon - initial_longitude) * 364000.0 * cos(initial_latitude * 3.14159265359 / 180.0);  // East-West in feet
         double z_pos = current_alt - initial_altitude;  // Height above launch point in feet
 
-        // update RK4
-        /* if (engine_shutdown){
-            predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
-        } */
         predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
-        outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," << altitude << "," << vertical_velocity << ","  << main_deployed << "\n";
+        outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," << altitude << "," << vertical_velocity << ","  << main_deployed <<  "," << cg_x << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;
             break;
         }
+
+        // Send packet of data to STM via TCP
+
 
         // Add detailed monitoring during descent phase
         /* if (reached_apogee && altitude < 700.0 && time > 11.0) {

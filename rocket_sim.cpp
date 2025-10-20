@@ -12,6 +12,7 @@
 #include <models/FGFCS.h>
 #include <models/propulsion/FGTank.h>
 #include <models/FGAuxiliary.h>
+#include <asio.hpp>
 
 int main(int argc, char* argv[]) {
     // Create an instance of the JSBSim flight dynamics model executor

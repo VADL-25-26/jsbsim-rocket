@@ -22,19 +22,32 @@ endif()
 message(STATUS "JSBSim library: ${JSBSIM_LIBRARY}")
 message(STATUS "JSBSim include dir: ${JSBSIM_INCLUDE_DIR}")
 
+
 # -----------------------------
 # Build rocket_sim
 # -----------------------------
 add_executable(rocket_sim rocket_sim.cpp)
-target_include_directories(rocket_sim PRIVATE ${JSBSIM_INCLUDE_DIR})
-target_link_libraries(rocket_sim ${JSBSIM_LIBRARY})
+target_include_directories(rocket_sim PRIVATE 
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(rocket_sim PRIVATE ASIO_STANDALONE)
+target_link_libraries(rocket_sim 
+${JSBSIM_LIBRARY}
+)
 
 # -----------------------------
 # Build rocket_sim_subscale
 # -----------------------------
 add_executable(rocket_sim_subscale rocket_sim_subscale.cpp)
-target_include_directories(rocket_sim_subscale PRIVATE ${JSBSIM_INCLUDE_DIR})
-target_link_libraries(rocket_sim_subscale ${JSBSIM_LIBRARY})
+target_include_directories(rocket_sim_subscale PRIVATE 
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(rocket_sim_subscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(rocket_sim_subscale 
+${JSBSIM_LIBRARY}
+)
 
 # -----------------------------
 # Copy aircraft config
