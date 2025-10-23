@@ -25,10 +25,10 @@ public:
             if (v <= 0.0) break;
 
             // Fourth-order RK4 integration
-            auto [k1_v, k1_h] = find_derivatives(v);
-            auto [k2_v, k2_h] = find_derivatives(v + 0.5 * dt * k1_v);
-            auto [k3_v, k3_h] = find_derivatives(v + 0.5 * dt * k2_v);
-            auto [k4_v, k4_h] = find_derivatives(v + dt * k3_v);
+            auto [k1_v, k1_h] = find_derivatives(v, h);
+            auto [k2_v, k2_h] = find_derivatives(v + 0.5 * dt * k1_v, h + 0.5 * dt * k1_h);
+            auto [k3_v, k3_h] = find_derivatives(v + 0.5 * dt * k2_v, h + 0.5 * dt * k2_h);
+            auto [k4_v, k4_h] = find_derivatives(v + dt * k3_v, h + dt * k3_h);
 
             v += (dt / 6.0) * (k1_v + 2.0 * k2_v + 2.0 * k3_v + k4_v);
             h += (dt / 6.0) * (k1_h + 2.0 * k2_h + 2.0 * k3_h + k4_h);
@@ -47,10 +47,10 @@ private:
     double AREA;
 
     // Compute derivatives: dv/dt and dh/dt
-    std::pair<double, double> find_derivatives(double velocity) {
+    std::pair<double, double> find_derivatives(double velocity, double height) {
         double drag = 0.5 * COEFF_DRAG * AREA * AIR_DENSITY * velocity * velocity * ((velocity >= 0.0) ? 1.0 : -1.0);
         double dv = -GRAV_CONST - drag / MASS;
-        double dh = velocity;
+        double dh = height;
         return {dv, dh};
     }
 };

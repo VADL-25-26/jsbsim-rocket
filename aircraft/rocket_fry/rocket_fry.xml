@@ -108,8 +108,8 @@
    <property value="0.333">metrics/acsarea</property> <!-- ACS fin area: 4 x 12in^2 = 0.333 ft^2-->
    <property value="0.834">metrics/acsarm</property> <!--ACS arm: 48.61 - 36.808" = 10.002" =  0.834 ft -->
 
-   <location name="AERORP" unit="FT">  <!-- Center of Pressure at 46.926" from OpenRocket -->
-     <x> 3.9105   </x> 
+   <location name="AERORP" unit="IN">  <!-- Center of Pressure at 46.926" from OpenRocket -->
+     <x> 46.926   </x> 
      <y> 0.00     </y>
      <z> 0.00     </z>
    </location>
@@ -133,7 +133,7 @@
    <iyy unit="SLUG*FT2">  1.148    </iyy>   <!-- Pitch/Yaw inertia for 68" rocket -->
    <izz unit="SLUG*FT2">  1.148     </izz>   <!-- Pitch/Yaw inertia for 68" rocket -->
    <emptywt unit="LBS" >  12.855 </emptywt>  <!-- No motor mass of rocket from openrocket -->
-   <location name="CG" unit="IN">  <!-- Center of Gravity at 36.808" (wet), 34.659" (no motor) -->
+   <location name="CG" unit="IN">  <!-- Center of Gravity 34.659" (no motor) -->
      <x> 34.659     </x>
      <y> 0.00     </y>
      <z> 0.00     </z>
@@ -141,8 +141,8 @@
    <pointmass name="Motor">
     <description> Cesaroni I470 motor propellant mass </description>
     <weight unit="LBS"> 0.545 </weight>  <!-- Given mass from manufacturer  -->
-    <location name="POINTMASS" unit="FT">  <!-- Motor location at rear -->
-     <x> 5.167     </x>  <!-- Around 62" from nose (center of motor)-->
+    <location name="POINTMASS" unit="IN">  <!-- Motor location at rear -->
+     <x> 62.5    </x>  <!-- Around 62.5" from nose (center of motor)-->
      <y> 0.00     </y>
      <z> 0.00    </z>
    </location>
@@ -155,8 +155,8 @@
         <running>0</running>
         <starter>0</starter>
         <thruster file="I470_nozzle">
-            <location unit="FT">  <!-- Motor at rear of rocket -->
-                <x>5.667</x>  <!-- 68" from nose -->
+            <location unit="IN">  <!-- Motor at rear of rocket -->
+                <x>68</x>  <!-- 68" from nose -->
                 <y>0.0</y>
                 <z>0.0</z>
             </location>
@@ -168,8 +168,8 @@
     </engine>
     <tank type="FUEL">
         <fuel_type>FUEL</fuel_type>
-        <location unit="FT">  <!-- Motor fuel location -->
-            <x>5.167 </x>  <!-- Motor center -->
+        <location unit="IN">  <!-- Motor fuel location -->
+            <x>62.5 </x>  <!-- Motor center -->
             <y>0.0</y>
             <z>0.0</z>
         </location>
@@ -193,19 +193,6 @@
 
  
   <property value="0">aero/ACSangle</property>  
-
-   <!-- Dynamic CPx location based on ACS angle -->
-   <function name="aero/CPx">
-      <description>Center of Pressure location vs ACS angle</description>
-      <table>
-         <independentVar lookup="row">aero/ACSangle</independentVar>
-         <tableData> <!-- Center of Pressure at 46.926" from OpenRocket -->
-            0        3.9105        <!-- ACS stowed -->
-            0.7854   3.9105        <!-- ACS deployed (45 deg) -->
-            1.5708   3.9105        <!-- 90 deg -->
-         </tableData>
-      </table>
-   </function>
 
 
   <axis name="LIFT">

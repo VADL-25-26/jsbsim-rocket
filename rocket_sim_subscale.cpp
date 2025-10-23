@@ -110,10 +110,10 @@ int main(int argc, char* argv[]) {
     double initial_latitude = 37.0;  // Launch latitude
     double initial_longitude = -122.0; // Launch longitude
     double initial_altitude = 10.5;   // Launch altitude
-    double cg_x = 0.0;                 // CGx location
+    double cg_x = 0.0;                 // CGx location (in)
 
     // Initialize RK4 model
-    Rk4 predictor(100, 3, 13.455/2.205, 0.008); // give metric inputs, mass is dry mass
+    Rk4 predictor(10, 3, 13.455/2.205, 0.008); // (hz, CD, drymass [kg], cross-section area [m^2])
     double predicted_apogee = 0;
     
     std::cout << "Starting I470 rocket simulation - real manufacturer thrust curve data" << std::endl;
