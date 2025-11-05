@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<!--
+    File: l1940_nozzle.xml
+    Description: Nozzle for Aerotech L1940 motor
+    
+    Typical 75mm motor nozzle exit diameter: ~1.5 in
+    Nozzle exit area = Pi * (1.5/2)^2 / 144 = 0.0122718463 ft2
+-->
+
+<nozzle name="l1940_nozzle">
+  <pe unit="PSF"> 0.0 </pe>  <!-- Sea level atmospheric pressure (gage)-->
+  <area unit="FT2"> 0.0122718463 </area>  <!-- Nozzle exit area for 38mm motor -->
+</nozzle> 

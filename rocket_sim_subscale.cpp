@@ -316,7 +316,8 @@ int main(int argc, char* argv[]) {
         double z_pos = current_alt - initial_altitude;  // Height above launch point in feet
 
         predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
-        outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," << altitude << "," << vertical_velocity << ","  << main_deployed <<  "," << cg_x << "\n";
+        outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," 
+        << altitude << "," << vertical_velocity << ","  << main_deployed <<  "," << cg_x << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;

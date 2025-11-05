@@ -50,6 +50,19 @@ ${JSBSIM_LIBRARY}
 )
 
 # -----------------------------
+# Build rocket_sim_fullscale
+# -----------------------------
+add_executable(rocket_sim_fullscale rocket_sim_fullscale.cpp)
+target_include_directories(rocket_sim_fullscale PRIVATE 
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(rocket_sim_fullscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(rocket_sim_fullscale 
+${JSBSIM_LIBRARY}
+)
+
+# -----------------------------
 # Copy aircraft config
 # -----------------------------
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft
