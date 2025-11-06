@@ -26,15 +26,15 @@ message(STATUS "JSBSim include dir: ${JSBSIM_INCLUDE_DIR}")
 # -----------------------------
 # Build rocket_sim
 # -----------------------------
-add_executable(rocket_sim rocket_sim.cpp)
-target_include_directories(rocket_sim PRIVATE 
-${JSBSIM_INCLUDE_DIR}
-"/home/altari/asio/asio/include"
-)
-target_compile_definitions(rocket_sim PRIVATE ASIO_STANDALONE)
-target_link_libraries(rocket_sim 
-${JSBSIM_LIBRARY}
-)
+#add_executable(rocket_sim rocket_sim.cpp)
+#target_include_directories(rocket_sim PRIVATE 
+#${JSBSIM_INCLUDE_DIR}
+#"/home/altari/asio/asio/include"
+#)
+#target_compile_definitions(rocket_sim PRIVATE ASIO_STANDALONE)
+#target_link_libraries(rocket_sim 
+#${JSBSIM_LIBRARY}
+#)
 
 # -----------------------------
 # Build rocket_sim_subscale
@@ -72,6 +72,7 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft
 # Runtime path for shared libraries
 # -----------------------------
 if(UNIX AND NOT APPLE)
-    set_target_properties(rocket_sim PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+    #set_target_properties(rocket_sim PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
     set_target_properties(rocket_sim_subscale PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set_target_properties(rocket_sim_fullscale PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()

@@ -9,7 +9,7 @@ public:
           MAX_TIME(16.0),
           GRAV_CONST(9.80665),
           COEFF_DRAG(coeff_drag),
-          AIR_DENSITY(1.225),
+          AIR_DENSITY_ZERO(1.225),
           MASS(mass),
           AREA(area) {}
 
@@ -42,15 +42,16 @@ private:
     double MAX_TIME;
     double GRAV_CONST;
     double COEFF_DRAG;
-    double AIR_DENSITY;
+    double AIR_DENSITY_ZERO;
     double MASS;
     double AREA;
 
     // Compute derivatives: dv/dt and dh/dt
     std::pair<double, double> find_derivatives(double velocity, double height) {
+        double AIR_DENSITY = AIR_DENSITY_ZERO * std::exp(-height / 8500.0);
         double drag = 0.5 * COEFF_DRAG * AREA * AIR_DENSITY * velocity * velocity * ((velocity >= 0.0) ? 1.0 : -1.0);
         double dv = -GRAV_CONST - drag / MASS;
-        double dh = height;
+        double dh = velocity;
         return {dv, dh};
     }
 };

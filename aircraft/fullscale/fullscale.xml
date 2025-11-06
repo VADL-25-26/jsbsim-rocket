@@ -136,15 +136,17 @@
      <z> 0.00     </z>
    </location>
 
-   <pointmass name="Motor Propellant">
-    <description> Aerotech L1940 motor propellant mass </description>
-    <weight unit="LBS"> 4.02 </weight> 
+   <pointmass name="Motor Casing">
+    <description> Aerotech L1940 motor casing mass </description>
+    <weight unit="LBS"> 4.48 </weight> 
     <location name="POINTMASS" unit="IN">  <!-- Motor location at rear -->
      <x> 89     </x>  <!-- Around 89" from nose -->
      <y> 0.00     </y>
      <z> 0.00    </z>
    </location>
    </pointmass>
+
+   
 
  </mass_balance>
 

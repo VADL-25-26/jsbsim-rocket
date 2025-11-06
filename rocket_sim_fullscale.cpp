@@ -20,11 +20,10 @@ int main(int argc, char* argv[]) {
     // Create an instance of the JSBSim flight dynamics model executor
     std::unique_ptr<JSBSim::FGFDMExec> fdmExec(new JSBSim::FGFDMExec());
 
-    // Set the simulation to run at 120 Hz
-    fdmExec->Setdt(1.0 / 120.0);
+    // Set the simulation to run at 200 Hz (matching VN100 speed)
+    fdmExec->Setdt(1.0 / 200.0);
 
-    // get the name of the aircraft from the command line arguments, defaulting
-    // to `rocket` if not provided
+    // select which rocket to simulate
     std::string aircraftName = "fullscale";
 
     if (argc == 2) {
@@ -48,8 +47,8 @@ int main(int argc, char* argv[]) {
 
     // Set initial conditions for launch into wind - REALISTIC LAUNCH TECHNIQUE (CORRECTED)
     fdmExec->GetIC()->SetAltitudeASLFtIC(10.5);    // Start slightly higher to avoid ground contact
-    fdmExec->GetIC()->SetLatitudeDegIC(37.0);
-    fdmExec->GetIC()->SetLongitudeDegIC(-122.0);
+    fdmExec->GetIC()->SetLatitudeDegIC(34.90115786777616);
+    fdmExec->GetIC()->SetLongitudeDegIC(-86.61568310338117);
     fdmExec->GetIC()->SetThetaDegIC(90.0);         // 0° forward tilt (subtract from 90)
     fdmExec->GetIC()->SetPhiDegIC(0.0);            // No roll
     fdmExec->GetIC()->SetPsiDegIC(180.0);          // Point south (into north wind)
@@ -68,7 +67,7 @@ int main(int argc, char* argv[]) {
 
     // initialize variables for ACS
     bool acs_deployed = false;
-    double goal_apogee = 4000; 
+    double goal_apogee = 4200; 
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -80,7 +79,7 @@ int main(int argc, char* argv[]) {
     fdmExec->RunIC();
     
     // Enable realistic atmospheric turbulence and wind for final testing
-    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0);      // Moderate turbulence
+    fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);      // Moderate turbulence
     fdmExec->SetPropertyValue("atmosphere/turb-gain", 1.0);      // Normal gain
     fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0); 
     fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
@@ -97,7 +96,7 @@ int main(int argc, char* argv[]) {
 
     // Open an output file to save the trajectory data
     std::ofstream outputFile("fullscale_trajectory.csv");
-    outputFile << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Drogue_Deployed,Main_Deployed\n";
+    outputFile << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Drogue_Deployed,Main_Deployed,CG_x_in,Mass_lbs\n";
 
     // Initialize motor ignition sequence
     bool motor_ignited = false;
@@ -106,12 +105,14 @@ int main(int argc, char* argv[]) {
     double total_impulse = 0.0;  // Track total impulse delivered
     double last_time = 0.0;      // For impulse integration
     double shutdown_time = 0.0; // for RK4 check
+    double print_interval = 0.1;
     
     // Store initial position for 3D trajectory tracking
-    double initial_latitude = 37.0;  // Launch latitude
-    double initial_longitude = -122.0; // Launch longitude
+    double initial_latitude = 34.90115786777616;  // Launch latitude - Bragg Farm
+    double initial_longitude = -86.61568310338117; // Launch longitude
     double initial_altitude = 10.5;   // Launch altitude
     double cg_x = 0.0; 
+    double mass = 51.1; // wet mass (lbs)
 
     // Initialize RK4 model
     Rk4 predictor(10, 2.14, 47.076564/2.205, 0.018238673); // (hz, CD, drymass [kg], cross-section area [m^2])
@@ -229,7 +230,7 @@ int main(int argc, char* argv[]) {
         
         last_time = time;
 
-        // Shut down engine when fuel is exhausted or after expected burn time
+        // MECO based on engine burn time given by manufacturer
         if (motor_ignited && !engine_shutdown) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
@@ -269,7 +270,7 @@ int main(int argc, char* argv[]) {
 
         // Deploy ACS when predicted apogee exceeds goal apogee
         if (!acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
-            fdmExec->SetPropertyValue("aero/ACSangle", 45*(M_PI/180)); // set acs to 45 deg
+            fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg
             acs_deployed = true;
             std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
 
@@ -290,7 +291,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Print and save trajectory data with improved output formatting
-        if (fmod(time, 5) < 0.01) {  // Print every 0.2 seconds for detailed tracking
+        if (fmod(time, print_interval) < 0.01) {  
+
             std::cout << std::fixed << std::setprecision(1);
             std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s";
             
@@ -311,10 +313,16 @@ int main(int argc, char* argv[]) {
             std::cout << std::endl;
         }
 
+        if (acs_deployed) {
+            print_interval = 5; // lengthen print interval after acs deployment
+        }
+
         // find cg-x location
         cg_x = fdmExec->GetMassBalance()->GetXYZcg(1);
+        mass = fdmExec->GetMassBalance()->GetMass() * 32.174; //mass is stored in slugs, convert to lbm
         
         // Calculate 3D position relative to launch point
+        predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
         double current_lat = fdmExec->GetPropagate()->GetLocation().GetLatitudeDeg();
         double current_lon = fdmExec->GetPropagate()->GetLocation().GetLongitudeDeg();
         double current_alt = fdmExec->GetPropagate()->GetAltitudeASL();
@@ -325,7 +333,8 @@ int main(int argc, char* argv[]) {
         double z_pos = current_alt - initial_altitude;  // Height above launch point in feet
         
         outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," 
-        << altitude << "," << vertical_velocity << "," << drogue_deployed << "," << main_deployed << "," << cg_x << "\n";
+        << altitude << "," << vertical_velocity << "," << drogue_deployed << "," << main_deployed << ","
+         << cg_x << "," << mass << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;
