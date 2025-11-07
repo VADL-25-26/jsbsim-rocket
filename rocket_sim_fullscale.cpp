@@ -12,6 +12,7 @@
 #include <models/FGFCS.h>
 #include <models/propulsion/FGTank.h>
 #include <models/FGAuxiliary.h>
+#include "models/FGAccelerations.h"
 #include "RK4.h"
 #include <iostream>
 #include <asio.hpp>
@@ -96,14 +97,17 @@ int main(int argc, char* argv[]) {
 
     // Open an output file to save the trajectory data
     std::ofstream outputFile("fullscale_trajectory.csv");
-    outputFile << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Drogue_Deployed,Main_Deployed,CG_x_in,Mass_lbs\n";
+    outputFile 
+    << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Vertical_Acceleration,"
+       "Drogue_Deployed,Main_Deployed,"
+       "CG_x_in,Mass_lbs,Pred_Apogee_ft\n";
 
     // Initialize motor ignition sequence
     bool motor_ignited = false;
     bool engine_shutdown = false;  // Track engine shutdown state
     double ignition_time = 0.001; // Quick ignition after simulation start
     double total_impulse = 0.0;  // Track total impulse delivered
-    double last_time = 0.0;      // For impulse integration
+    double last_time = 0.0;      // For impulse integration, and acceleration derivation
     double shutdown_time = 0.0; // for RK4 check
     double print_interval = 0.1;
     
@@ -114,8 +118,12 @@ int main(int argc, char* argv[]) {
     double cg_x = 0.0; 
     double mass = 51.1; // wet mass (lbs)
 
+    // initialize variables for acceleration derivation
+    double last_vertical_velocity = 0.0;
+    double vertical_acceleration = 0.0;
+
     // Initialize RK4 model
-    Rk4 predictor(10, 2.14, 47.076564/2.205, 0.018238673); // (hz, CD, drymass [kg], cross-section area [m^2])
+    Rk4 predictor(10, 2.14, 47.08/2.205, 0.01824); // (hz, CD, drymass [kg], cross-section area [m^2])
     double predicted_apogee = 0;
     
     std::cout << "Starting L1940 rocket simulation" << std::endl;
@@ -133,6 +141,7 @@ int main(int argc, char* argv[]) {
         // Get current state
         double time = fdmExec->GetSimTime();
         double altitude = fdmExec->GetPropagate()->GetAltitudeASL();
+        double dt = time - last_time;
         
         // Get velocity components for proper apogee detection
         double vx = fdmExec->GetPropagate()->GetVel(1); // X velocity (forward/aft)
@@ -143,6 +152,15 @@ int main(int argc, char* argv[]) {
         double velocity_magnitude = sqrt(vx*vx + vy*vy + vz*vz);
         double vertical_velocity = -vz; // In JSBSim: positive Z is down, so -Z is up
         
+        // Get body acceleration
+        /* double a_x = fdmExec->GetAccelerations()->GetUVWdot(1);
+        double a_y = fdmExec->GetAccelerations()->GetUVWdot(2);
+        double a_z = fdmExec->GetAccelerations()->GetUVWdot(3); */
+
+        // integrate vertical acceleration
+        vertical_acceleration = (vertical_velocity - last_vertical_velocity) / dt;
+        last_vertical_velocity = vertical_velocity;
+
         // Check for numerical divergence and terminate gracefully
         if (velocity_magnitude > 10000.0 || altitude > 100000.0 || std::isnan(velocity_magnitude) || std::isnan(altitude)) {
             std::cout << "ERROR: Numerical divergence detected!" << std::endl;
@@ -222,7 +240,6 @@ int main(int argc, char* argv[]) {
         // Continue impulse integration even after debug output stops
         if (motor_ignited && !engine_shutdown) {
             auto engine = fdmExec->GetPropulsion()->GetEngine(0);
-            double dt = time - last_time;
             if (dt > 0) {
                 total_impulse += engine->GetThrust() * dt;
             }
@@ -291,7 +308,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Print and save trajectory data with improved output formatting
-        if (fmod(time, print_interval) < 0.01) {  
+        if (fmod(time, print_interval) < 0.005) {  
 
             std::cout << std::fixed << std::setprecision(1);
             std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s";
@@ -314,7 +331,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (acs_deployed) {
-            print_interval = 5; // lengthen print interval after acs deployment
+            print_interval = 10; // lengthen print interval after acs deployment
         }
 
         // find cg-x location
@@ -333,8 +350,10 @@ int main(int argc, char* argv[]) {
         double z_pos = current_alt - initial_altitude;  // Height above launch point in feet
         
         outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," 
-        << altitude << "," << vertical_velocity << "," << drogue_deployed << "," << main_deployed << ","
-         << cg_x << "," << mass << "\n";
+        << altitude << "," << vertical_velocity << "," << vertical_acceleration << "," 
+        //<< a_x << "," << a_y << "," << a_z << ","
+        << drogue_deployed << "," << main_deployed << ","
+        << cg_x << "," << mass << "," << predicted_apogee << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;

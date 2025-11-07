@@ -3,10 +3,10 @@
 
 class Rk4 {
 public:
-    // default values
+    // default values - Hz, CD, dry mass (kg), cross-section area (m^2)
     Rk4(double frequency = 10.0, double coeff_drag = 3.0, double mass = 5.0, double area = 1.0)
         : FREQUENCY(frequency),
-          MAX_TIME(16.0),
+          MAX_TIME(25),
           GRAV_CONST(9.80665),
           COEFF_DRAG(coeff_drag),
           AIR_DENSITY_ZERO(1.225),

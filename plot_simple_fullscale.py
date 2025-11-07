@@ -30,14 +30,15 @@ def plot_rocket_trajectory(csv_file='fullscale_trajectory.csv'):
     z_ft = [float(row['Z_ft']) for row in data]
     altitude = [float(row['Altitude']) for row in data]
     vertical_velocity = [float(row['Vertical_Velocity']) for row in data]
+    vertical_acceleration = [float(row['Vertical_Acceleration']) for row in data]
     drogue = [int(row['Drogue_Deployed']) for row in data]
     main = [int(row['Main_Deployed']) for row in data]
     
     # Create figure with subplots
-    fig = plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(15, 12))
     
     # 3D trajectory plot
-    ax1 = fig.add_subplot(221, projection='3d')
+    ax1 = fig.add_subplot(321, projection='3d')
     ax1.plot(x_ft, y_ft, z_ft, 'b-', linewidth=2, alpha=0.8, label='Flight path')
     
     # Mark key points
@@ -56,7 +57,7 @@ def plot_rocket_trajectory(csv_file='fullscale_trajectory.csv'):
     ax1.legend()
     
     # Altitude vs Time
-    ax2 = fig.add_subplot(222)
+    ax2 = fig.add_subplot(322)
     ax2.plot(time, z_ft, 'b-', linewidth=2, label='Altitude')
     ax2.axhline(y=max(z_ft), color='r', linestyle='--', alpha=0.7, label=f'Max Alt: {max(z_ft):.0f} ft')
     
@@ -82,7 +83,7 @@ def plot_rocket_trajectory(csv_file='fullscale_trajectory.csv'):
     ax2.legend()
     
     # Velocity vs Time
-    ax3 = fig.add_subplot(223)
+    ax3 = fig.add_subplot(323)
     ax3.plot(time, vertical_velocity, 'g-', linewidth=2)
     ax3.set_xlabel('Time [s]')
     ax3.set_ylabel('Velocity [ft/s]')
@@ -90,7 +91,7 @@ def plot_rocket_trajectory(csv_file='fullscale_trajectory.csv'):
     ax3.grid(True, alpha=0.3)
     
     # Horizontal displacement
-    ax4 = fig.add_subplot(224)
+    ax4 = fig.add_subplot(324)
     horizontal_dist = [np.sqrt(x**2 + y**2) for x, y in zip(x_ft, y_ft)]
     ax4.plot(time, horizontal_dist, 'm-', linewidth=2)
     ax4.set_xlabel('Time [s]')
@@ -98,6 +99,15 @@ def plot_rocket_trajectory(csv_file='fullscale_trajectory.csv'):
     ax4.set_title('Horizontal Drift vs Time')
     ax4.grid(True, alpha=0.3)
     
+    # Vertical Acceleration
+    ax5 = fig.add_subplot(325)
+    ax5.plot(time, vertical_acceleration, 'r-', linewidth=2, label='a_x')
+    ax5.set_xlabel('Time [s]')
+    ax5.set_ylabel('Acceleration [ft/s²]')
+    ax5.set_title('Vertical Acceleration vs Time')
+    ax5.grid(True, alpha=0.3)
+    ax5.legend()
+
     plt.tight_layout()
     
     # Print flight statistics
