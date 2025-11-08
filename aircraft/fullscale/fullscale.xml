@@ -175,8 +175,8 @@
             <y>0.0</y>
             <z>0.0</z>
         </location>
-        <capacity unit="LBS">4.02</capacity>  <!-- L1940 propellant mass -->
-        <contents unit="LBS">4.02</contents>
+        <capacity unit="LBS">4.023</capacity>  <!-- L1940 propellant mass -->
+        <contents unit="LBS">4.023</contents>
     </tank>
  </propulsion>
 

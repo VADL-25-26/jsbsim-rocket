@@ -157,9 +157,19 @@ int main(int argc, char* argv[]) {
         double a_y = fdmExec->GetAccelerations()->GetUVWdot(2);
         double a_z = fdmExec->GetAccelerations()->GetUVWdot(3); */
 
-        // integrate vertical acceleration
+        /* // integrate vertical acceleration
         vertical_acceleration = (vertical_velocity - last_vertical_velocity) / dt;
-        last_vertical_velocity = vertical_velocity;
+        last_vertical_velocity = vertical_velocity; */
+
+        // Body acceleration vector (ft/s²)
+        JSBSim::FGColumnVector3 a_body = fdmExec->GetAccelerations()->GetBodyAccel();
+
+        // Transform from body to local (Earth) frame
+        JSBSim::FGMatrix33 T_body_to_local = fdmExec->GetPropagate()->GetTb2l();
+        JSBSim::FGColumnVector3 a_local = T_body_to_local * a_body;
+
+        // Vertical (upward) acceleration in local frame
+        vertical_acceleration = -a_local(3);  // Note JSBSim uses +Z down
 
         // Check for numerical divergence and terminate gracefully
         if (velocity_magnitude > 10000.0 || altitude > 100000.0 || std::isnan(velocity_magnitude) || std::isnan(altitude)) {
