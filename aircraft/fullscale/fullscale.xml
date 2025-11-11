@@ -122,6 +122,7 @@
    <!-- use this syntax for custom parameters-->
    <property value="0.3333">metrics/acsarea</property> <!-- ACS fin area: 4 x 12in^2 = 48 in^2-->
    <property value="1.1333">metrics/acsarm</property> <!--ACS arm: 72" - 58.408" -->
+ 
  </metrics>
 
 
@@ -193,6 +194,8 @@
  </flight_control>
 
  <aerodynamics>
+
+  <property value="0">aero/ACSangle</property>  <!-- ACS fin deflection angle in rad -->
 
   <axis name="LIFT">
 
@@ -343,6 +346,18 @@
            <property>aero/qbar-psf</property>
            <property>metrics/Sw-sqft</property>
            <value> 0.0302 </value>  <!-- Fin thickness x height x 1.28 x4 (ft^2) -->
+       </product>
+    </function>
+
+    <function  name="aero/force/ACS_drag">
+       <description>Drag due to ACS fins</description>
+       <product>
+           <property>aero/qbar-psf</property>
+           <property>metrics/acsarea</property>
+           <value> 1.28 </value> <!-- CD of flat plate -->
+           <sin>
+            <property>aero/ACSangle</property>
+           </sin>  
        </product>
     </function>
 

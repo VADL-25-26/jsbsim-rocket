@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
     // initialize variables for ACS
     bool acs_deployed = false;
     double goal_apogee = 4200; 
+    bool acs_enabled = true;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -296,8 +297,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Deploy ACS when predicted apogee exceeds goal apogee
-        if (!acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
-            fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg
+        if (acs_enabled && !acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
+            fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
             acs_deployed = true;
             std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
 
@@ -318,7 +319,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Print and save trajectory data with improved output formatting
-        if (fmod(time, print_interval) < 0.005) {  
+        if (fmod(time, print_interval) < 0.001) {  
 
             std::cout << std::fixed << std::setprecision(1);
             std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s";
