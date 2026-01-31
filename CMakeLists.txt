@@ -44,7 +44,7 @@ target_include_directories(rocket_sim_subscale PRIVATE
 ${JSBSIM_INCLUDE_DIR}
 "/home/altari/asio/asio/include"
 )
-target_compile_definitions(rocket_sim_subscale PRIVATE ASIO_STANDALONE)
+target_compile_definitions(rocket_sim_subscale PRIVATE)
 target_link_libraries(rocket_sim_subscale 
 ${JSBSIM_LIBRARY}
 )
@@ -55,10 +55,22 @@ ${JSBSIM_LIBRARY}
 add_executable(rocket_sim_fullscale rocket_sim_fullscale.cpp)
 target_include_directories(rocket_sim_fullscale PRIVATE 
 ${JSBSIM_INCLUDE_DIR}
+)
+target_compile_definitions(rocket_sim_fullscale PRIVATE)
+target_link_libraries(rocket_sim_fullscale 
+${JSBSIM_LIBRARY}
+)
+
+# -----------------------------
+# Build hitl_sim_fullscale
+# -----------------------------
+add_executable(hitl_sim_fullscale hitl_sim_fullscale.cpp)
+target_include_directories(hitl_sim_fullscale PRIVATE 
+${JSBSIM_INCLUDE_DIR}
 "/home/altari/asio/asio/include"
 )
-target_compile_definitions(rocket_sim_fullscale PRIVATE ASIO_STANDALONE)
-target_link_libraries(rocket_sim_fullscale 
+target_compile_definitions(hitl_sim_fullscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(hitl_sim_fullscale 
 ${JSBSIM_LIBRARY}
 )
 
