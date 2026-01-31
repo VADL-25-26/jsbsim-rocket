@@ -15,8 +15,78 @@
 #include "models/FGAccelerations.h"
 #include "RK4.h"
 #include <iostream>
+#include <asio.hpp>
 
-int main(int argc, char* argv[]) {    
+#pragma pack(push, 1)
+struct HilPacket {
+    float yaw, pitch, roll, a_x, a_y, a_z, pressure;
+};
+#pragma pack(pop)
+
+class SerialLink {
+public:
+    SerialLink(const std::string& dev, unsigned baud)
+        : io_(),
+          port_(io_, dev),
+          running_(true)
+    {
+        port_.set_option(asio::serial_port_base::baud_rate(baud));
+        port_.set_option(asio::serial_port_base::character_size(8));
+        port_.set_option(asio::serial_port_base::parity(
+            asio::serial_port_base::parity::none));
+        port_.set_option(asio::serial_port_base::stop_bits(
+            asio::serial_port_base::stop_bits::one));
+        port_.set_option(asio::serial_port_base::flow_control(
+            asio::serial_port_base::flow_control::none));
+
+        start_rx();
+
+        io_thread_ = std::thread([this]() {
+            io_.run();
+        });
+    }
+
+    ~SerialLink() {
+        running_ = false;
+        io_.stop();
+        if (io_thread_.joinable())
+            io_thread_.join();
+    }
+
+    void send(const void* data, size_t len) {
+        asio::write(port_, asio::buffer(data, len));
+    }
+
+private:
+    void start_rx() {
+        port_.async_read_some(
+            asio::buffer(rx_buf_),
+            [this](const asio::error_code& ec, size_t n) {
+                if (!ec && running_) {
+                    on_rx(n);
+                    start_rx();
+                }
+            });
+    }
+
+    void on_rx(size_t n) {
+        // TODO: parse STM32 responses / commands
+        // For now, just debug print
+        std::cout << "[STM32 RX] ";
+        std::cout.write(rx_buf_.data(), n);
+        std::cout << std::endl;
+    }
+
+    asio::io_context io_;
+    asio::serial_port port_;
+    std::thread io_thread_;
+    std::atomic<bool> running_;
+    std::array<char, 256> rx_buf_;
+};
+
+int main(int argc, char* argv[]) {
+    SerialLink stm32("/dev/ttyS5", 115200);  // adjust ttyS*
+    
     // Create an instance of the JSBSim flight dynamics model executor
     std::unique_ptr<JSBSim::FGFDMExec> fdmExec(new JSBSim::FGFDMExec());
 
@@ -385,6 +455,17 @@ int main(int argc, char* argv[]) {
                           << "deg, Mach=" << mach << ", Qbar=" << qbar << "psf" << std::endl;
             }
         } */
+
+        // Send HIL packet to STM32
+        HilPacket pkt{};
+        pkt.yaw = 0x00;
+        pkt.pitch = 0x00;
+        pkt.roll = 0x00;
+        pkt.a_x = 0x00;
+        pkt.a_y = 0x00;
+        pkt.a_z = 0x00;
+        pkt.pressure = 101.325 * pow((1 - (altitude / 145366.45)), (1/0.190284)); 
+        stm32.send(&pkt, sizeof(pkt));
     }
 
     std::cout << "Simulation complete." << std::endl;
