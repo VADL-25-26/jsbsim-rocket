@@ -104,7 +104,7 @@
    <vtailarea  unit="FT2">0.6611     </vtailarea>  <!-- 2 fins × 47.6 in² /144  -->
    <vtailarm  unit="FT" > 2.633   </vtailarm>   <!-- Fin arm: 90" - 58.4" = 31.6" -->
    <location name="AERORP" unit="IN">  <!-- Center of Pressure at 68.1" from diagram -->
-     <x> 72.126     </x>  
+     <x> 72.048     </x>  
      <y> 0.00     </y>
      <z> 0.00     </z>
    </location>
@@ -130,9 +130,9 @@
    <ixx unit="SLUG*FT2">  0.02    </ixx>  <!-- Roll inertia for 6" diameter rocket (much smaller) -->
    <iyy unit="SLUG*FT2">  1.8     </iyy>   <!-- Pitch/Yaw inertia for 109" rocket (much smaller) -->
    <izz unit="SLUG*FT2">  1.8     </izz>   <!-- Pitch/Yaw inertia for 109" rocket (much smaller) -->
-   <emptywt unit="LBS" >  42.6 </emptywt>  <!-- Restored to original spec (was 35.0) -->
+   <emptywt unit="LBS" >  41.9 </emptywt>  <!-- Restored to original spec (was 35.0) -->
    <location name="CG" unit="IN">  <!-- No motor CG" -->
-     <x> 52.282     </x>
+     <x> 52.025     </x>
      <y> 0.00     </y>
      <z> 0.00     </z>
    </location>
@@ -141,7 +141,7 @@
     <description> Aerotech L1940 motor casing mass </description>
     <weight unit="LBS"> 4.48 </weight> 
     <location name="POINTMASS" unit="IN">  <!-- Motor location at rear -->
-     <x> 89     </x>  <!-- Around 89" from nose -->
+     <x> 91     </x>  <!-- Around 89" from nose -->
      <y> 0.00     </y>
      <z> 0.00    </z>
    </location>
@@ -158,7 +158,7 @@
         <starter>0</starter>
         <thruster file="l1940_nozzle">
             <location unit="IN">  <!-- Motor at rear of rocket -->
-                <x>100</x>  
+                <x>102</x>  
                 <y>0.0</y>
                 <z>0.0</z>
             </location>
@@ -172,7 +172,7 @@
     <tank type="FUEL">
         <fuel_type>FUEL</fuel_type>
         <location unit="IN">  <!-- Motor fuel location -->
-            <x>89</x>  <!-- Motor center -->
+            <x>91</x>  <!-- Motor center -->
             <y>0.0</y>
             <z>0.0</z>
         </location>
@@ -704,7 +704,7 @@
  <ground_reactions>
     <contact type="BOGEY" name="LANDING_CONTACT">
         <location unit="IN">  <!-- Contact point at rocket nozzle (bottom end) -->
-            <x>100.0</x>  <!-- At nozzle end (100" from nose) -->
+            <x>101</x>  <!-- At nozzle end (100" from nose) -->
             <y>0.0</y>
             <z>0.25</z>   <!-- At bottom surface of rocket (3" radius = 0.25 ft down from centerline) -->
         </location>

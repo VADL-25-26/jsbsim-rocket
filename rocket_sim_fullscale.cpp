@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Set initial conditions for launch into wind - REALISTIC LAUNCH TECHNIQUE (CORRECTED)
-    fdmExec->GetIC()->SetAltitudeASLFtIC(10.5);    // Start slightly higher to avoid ground contact
+    fdmExec->GetIC()->SetAltitudeASLFtIC(5);    // Start slightly higher to avoid ground contact
     fdmExec->GetIC()->SetLatitudeDegIC(34.90115786777616);
     fdmExec->GetIC()->SetLongitudeDegIC(-86.61568310338117);
     fdmExec->GetIC()->SetThetaDegIC(90.0);         // 0° forward tilt (subtract from 90)
@@ -114,9 +114,9 @@ int main(int argc, char* argv[]) {
     // Store initial position for 3D trajectory tracking
     double initial_latitude = 34.90115786777616;  // Launch latitude - Bragg Farm
     double initial_longitude = -86.61568310338117; // Launch longitude
-    double initial_altitude = 10.5;   // Launch altitude
+    double initial_altitude = 5;   // Launch altitude
     double cg_x = 0.0; 
-    double mass = 51.1; // wet mass (lbs)
+    double mass = 50.4; // wet mass (lbs)
 
     // initialize variables for acceleration derivation
     double last_vertical_velocity = 0.0;
