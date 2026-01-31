@@ -13,9 +13,12 @@
 #include <models/propulsion/FGTank.h>
 #include <models/FGAuxiliary.h>
 #include "models/FGAccelerations.h"
-#include "RK4.h"
 #include <iostream>
 #include <asio.hpp>
+#include <atomic>
+
+
+std::atomic<bool> acs_deployed(false);
 
 #pragma pack(push, 1)
 struct HilPacket {
@@ -70,11 +73,12 @@ private:
     }
 
     void on_rx(size_t n) {
-        // TODO: parse STM32 responses / commands
-        // For now, just debug print
-        std::cout << "[STM32 RX] ";
-        std::cout.write(rx_buf_.data(), n);
-        std::cout << std::endl;
+        for (size_t i = 0; i < n; ++i) {
+            if (rx_buf_[i] == 0xAC) {
+                acs_deployed.store(true, std::memory_order_release);
+                std::cout << "[HIL] ACS deploy command received" << std::endl;
+            }
+        }
     }
 
     asio::io_context io_;
@@ -135,10 +139,8 @@ int main(int argc, char* argv[]) {
     fdmExec->SetPropertyValue("fcs/aileron-cmd-norm", 0.0);
     fdmExec->SetPropertyValue("fcs/rudder-cmd-norm", 0.0);
 
-    // initialize variables for ACS
-    bool acs_deployed = false;
-    double goal_apogee = 4200; 
     bool acs_enabled = true;
+    bool acs_active = false;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -192,9 +194,6 @@ int main(int argc, char* argv[]) {
     double last_vertical_velocity = 0.0;
     double vertical_acceleration = 0.0;
 
-    // Initialize RK4 model
-    Rk4 predictor(10, 2.14, 47.08/2.205, 0.01824); // (hz, CD, drymass [kg], cross-section area [m^2])
-    double predicted_apogee = 0;
     
     std::cout << "Starting L1940 rocket simulation" << std::endl;
     std::cout << "Expected apogee (no ACS): ~4400ft" << std::endl;
@@ -366,11 +365,10 @@ int main(int argc, char* argv[]) {
         }
 
         // Deploy ACS when predicted apogee exceeds goal apogee
-        if (acs_enabled && !acs_deployed && predicted_apogee >= goal_apogee && engine_shutdown && time > shutdown_time + 0.5){
+        if (!acs_active && acs_enabled && acs_deployed.exchange(false) && engine_shutdown && time > shutdown_time + 0.5){
             fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
-            acs_deployed = true;
-            std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
-
+            std::cout << "t= " << time << "s: ACS deployed at " << altitude << " ft" << std::endl;
+            acs_active = true;
         }
 
         // Deploy drogue chute at apogee
@@ -419,7 +417,6 @@ int main(int argc, char* argv[]) {
         mass = fdmExec->GetMassBalance()->GetMass() * 32.174; //mass is stored in slugs, convert to lbm
         
         // Calculate 3D position relative to launch point
-        predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048,vertical_velocity*0.3048); // convert units
         double current_lat = fdmExec->GetPropagate()->GetLocation().GetLatitudeDeg();
         double current_lon = fdmExec->GetPropagate()->GetLocation().GetLongitudeDeg();
         double current_alt = fdmExec->GetPropagate()->GetAltitudeASL();
@@ -433,7 +430,7 @@ int main(int argc, char* argv[]) {
         << altitude << "," << vertical_velocity << "," << vertical_acceleration << "," 
         //<< a_x << "," << a_y << "," << a_z << ","
         << drogue_deployed << "," << main_deployed << ","
-        << cg_x << "," << mass << "," << predicted_apogee << "\n";
+        << cg_x << "," << mass << "," << "\n";
 
         if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;
