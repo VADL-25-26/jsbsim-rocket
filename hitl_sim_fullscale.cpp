@@ -16,15 +16,76 @@
 #include <iostream>
 #include <asio.hpp>
 #include <atomic>
+#include <thread>
+#include <chrono>
+#include <linux/serial.h>
+#include <sys/ioctl.h>
+#include <pthread.h>
+
+constexpr size_t PACKET_LEN = 36;
+
+uint16_t vn_crc16(const uint8_t* data, size_t length)
+{
+    uint16_t crc = 0;
+    for (size_t i = 0; i < length; i++) {
+        crc = (crc >> 8) | (crc << 8);
+        crc ^= data[i];
+        crc ^= (crc & 0xFF) >> 4;
+        crc ^= crc << 12;
+        crc ^= (crc & 0xFF) << 5;
+    }
+    return crc;
+}
 
 
-std::atomic<bool> acs_deployed(false);
+void build_packet(uint8_t* packet,
+                float yaw, float pitch, float roll,
+                float ax, float ay, float az,
+                float pressure)
+{
+    packet[0] = 0xFA;
+    packet[1] = 0x01;   // msg id
+    packet[2] = 0x05;   // group flags
+    packet[3] = 0x00;
+    packet[4] = 0x00;
+    packet[5] = 0x00;
 
-#pragma pack(push, 1)
-struct HilPacket {
-    float yaw, pitch, roll, a_x, a_y, a_z, pressure;
-};
-#pragma pack(pop)
+    std::memcpy(&packet[6],  &yaw,      4);
+    std::memcpy(&packet[10],  &pitch,    4);
+    std::memcpy(&packet[14], &roll,     4);
+    std::memcpy(&packet[18], &ax,       4);
+    std::memcpy(&packet[22], &ay,       4);
+    std::memcpy(&packet[26], &az,       4);
+    std::memcpy(&packet[30], &pressure, 4);
+
+    uint16_t crc = vn_crc16(&packet[1], 33);
+
+    packet[34] = (crc >> 8) & 0xFF;
+    packet[35] = crc & 0xFF;
+}
+
+void config_thread(std::thread& t, int core_id, int priority) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    pthread_setaffinity_np(t.native_handle(), sizeof(cpu_set_t), &cpuset);
+
+    sched_param sch;
+    sch.sched_priority = priority;
+    
+    int result = pthread_setschedparam(t.native_handle(), SCHED_FIFO, &sch);
+    
+    if (result != 0) {
+        // Just a warning, doesn't kill the app
+        // On WSL, this is expected unless running as sudo
+        static bool warned = false;
+        if (!warned) {
+            std::cout << "[System] Note: Real-time priority not available (WSL/Permissions). Running in Best-Effort mode." << std::endl;
+            warned = true;
+        }
+    }
+}
+
 
 class SerialLink {
 public:
@@ -41,6 +102,15 @@ public:
             asio::serial_port_base::stop_bits::one));
         port_.set_option(asio::serial_port_base::flow_control(
             asio::serial_port_base::flow_control::none));
+
+
+        int fd = port_.native_handle();
+        struct serial_struct ser_info;
+        if (ioctl(fd, TIOCGSERIAL, &ser_info) >= 0) {
+            ser_info.flags |= ASYNC_LOW_LATENCY;
+            ioctl(fd, TIOCSSERIAL, &ser_info);
+        }
+        ::tcflush(port_.native_handle(), TCIFLUSH);
 
         start_rx();
 
@@ -60,6 +130,18 @@ public:
         asio::write(port_, asio::buffer(data, len));
     }
 
+    bool acs_deployed() const {
+        return acs_deploy.load(std::memory_order_acquire);
+    }
+
+    int get_fd() {
+        return port_.native_handle();
+    }
+
+    std::thread& io_thread() {
+        return io_thread_;
+    }
+
 private:
     void start_rx() {
         port_.async_read_some(
@@ -71,31 +153,56 @@ private:
                 }
             });
     }
-
     void on_rx(size_t n) {
-        for (size_t i = 0; i < n; ++i) {
-            if (rx_buf_[i] == 0xAC) {
-                acs_deployed.store(true, std::memory_order_release);
-                std::cout << "[HIL] ACS deploy command received" << std::endl;
-            }
+        // Append new bytes to our persistent "waiting" string
+        rx_accumulator.append(rx_buf_.data(), n);
+
+        size_t pos = rx_accumulator.find("ACS_PWM_CHANGED\n");
+        if (pos != std::string::npos) {
+            acs_deploy.store(true, std::memory_order_release);
+            std::cout << "[HIL] ACS deploy command received" << std::endl;
+
+            rx_accumulator.erase(0, pos + 15);
+        }
+
+        if (rx_accumulator.size() > 100) {
+            rx_accumulator.erase(0, 50); 
         }
     }
+
 
     asio::io_context io_;
     asio::serial_port port_;
     std::thread io_thread_;
     std::atomic<bool> running_;
     std::array<char, 256> rx_buf_;
+    std::atomic<bool> acs_deploy{false};
+    std::string rx_accumulator; 
 };
 
 int main(int argc, char* argv[]) {
-    SerialLink stm32("/dev/ttyS5", 115200);  // adjust ttyS*
+    using clock = std::chrono::steady_clock;
+    constexpr auto STEP = std::chrono::milliseconds(5); // 200 Hz
+
+    auto next_tick = clock::now() + STEP;
+    uint8_t output_packet[PACKET_LEN];
+
+    SerialLink stm32("/dev/ttyACM0", 115200);  // adjust ttyS*
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    ::tcflush(stm32.get_fd(), TCIFLUSH);
+
+    config_thread(stm32.io_thread(), 1, 80);
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     
     // Create an instance of the JSBSim flight dynamics model executor
     std::unique_ptr<JSBSim::FGFDMExec> fdmExec(new JSBSim::FGFDMExec());
 
     // Set the simulation to run at 200 Hz (matching VN100 speed)
-    fdmExec->Setdt(1.0 / 200.0);
+    fdmExec->Setdt(1.0 / 400.0);
 
     // select which rocket to simulate
     std::string aircraftName = "fullscale";
@@ -158,17 +265,17 @@ int main(int argc, char* argv[]) {
     fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
     fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
     
-    // Debug: Check current wind conditions
-    std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
-    std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (5 mph)" << std::endl;
-    std::cout << "Wind East:  " << fdmExec->GetPropertyValue("atmosphere/wind-east-fps") << " fps" << std::endl;
-    std::cout << "Wind Down:  " << fdmExec->GetPropertyValue("atmosphere/wind-down-fps") << " fps" << std::endl;
-    std::cout << "Wind Mag:   " << fdmExec->GetPropertyValue("atmosphere/wind-mag-fps") << " fps" << std::endl;
-    std::cout << "Turb Rate:  " << fdmExec->GetPropertyValue("atmosphere/turb-rate") << std::endl;
-    std::cout << "=========================================" << std::endl;
+    // // Debug: Check current wind conditions
+    // std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
+    // std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (5 mph)" << std::endl;
+    // std::cout << "Wind East:  " << fdmExec->GetPropertyValue("atmosphere/wind-east-fps") << " fps" << std::endl;
+    // std::cout << "Wind Down:  " << fdmExec->GetPropertyValue("atmosphere/wind-down-fps") << " fps" << std::endl;
+    // std::cout << "Wind Mag:   " << fdmExec->GetPropertyValue("atmosphere/wind-mag-fps") << " fps" << std::endl;
+    // std::cout << "Turb Rate:  " << fdmExec->GetPropertyValue("atmosphere/turb-rate") << std::endl;
+    // std::cout << "=========================================" << std::endl;
 
     // Open an output file to save the trajectory data
-    std::ofstream outputFile("fullscale_trajectory.csv");
+    std::ofstream outputFile("hitl_fullscale_trajectory.csv");
     outputFile 
     << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Vertical_Acceleration,"
        "Drogue_Deployed,Main_Deployed,"
@@ -186,18 +293,17 @@ int main(int argc, char* argv[]) {
     // Store initial position for 3D trajectory tracking
     double initial_latitude = 34.90115786777616;  // Launch latitude - Bragg Farm
     double initial_longitude = -86.61568310338117; // Launch longitude
-    double initial_altitude = 10.5;   // Launch altitude
+    double initial_altitude = 5;   // Launch altitude
     double cg_x = 0.0; 
-    double mass = 51.1; // wet mass (lbs)
+    double mass = 50.4; // wet mass (lbs)
 
     // initialize variables for acceleration derivation
     double last_vertical_velocity = 0.0;
     double vertical_acceleration = 0.0;
 
     
-    std::cout << "Starting L1940 rocket simulation" << std::endl;
-    std::cout << "Expected apogee (no ACS): ~4400ft" << std::endl;
-    std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
+    // std::cout << "Starting L1940 rocket simulation" << std::endl;
+    // std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
 
     float liftoff_threshold_agl = 10.0f;
     bool did_liftoff = false;
@@ -210,6 +316,7 @@ int main(int argc, char* argv[]) {
         // Get current state
         double time = fdmExec->GetSimTime();
         double altitude = fdmExec->GetPropagate()->GetAltitudeASL();
+        float pressure = 101.325 * powf32((1.0f - (altitude / 145366.45)), (1.0f/0.190284f)); // Altitude to pressure (ft to kPa
         double dt = time - last_time;
         
         // Get velocity components for proper apogee detection
@@ -242,11 +349,11 @@ int main(int argc, char* argv[]) {
 
         // Check for numerical divergence and terminate gracefully
         if (velocity_magnitude > 10000.0 || altitude > 100000.0 || std::isnan(velocity_magnitude) || std::isnan(altitude)) {
-            std::cout << "ERROR: Numerical divergence detected!" << std::endl;
-            std::cout << "Time=" << time << "s, Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s" << std::endl;
-            std::cout << "VX=" << vx << " VY=" << vy << " VZ=" << vz << std::endl;
-            std::cout << "Vertical_vel=" << vertical_velocity << "ft/s" << std::endl;
-            std::cout << "Terminating simulation to prevent crash..." << std::endl;
+            // std::cout << "ERROR: Numerical divergence detected!" << std::endl;
+            // std::cout << "Time=" << time << "s, Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s" << std::endl;
+            // std::cout << "VX=" << vx << " VY=" << vy << " VZ=" << vz << std::endl;
+            // std::cout << "Vertical_vel=" << vertical_velocity << "ft/s" << std::endl;
+            // std::cout << "Terminating simulation to prevent crash..." << std::endl;
             break;
         }
 
@@ -268,7 +375,7 @@ int main(int argc, char* argv[]) {
 
         // Ignite motor at scheduled time using throttle setting for solid rockets
         if (!motor_ignited && time >= ignition_time) {
-            std::cout << "Igniting engine at t=" << time << "s" << std::endl;
+            // std::cout << "Igniting engine at t=" << time << "s" << std::endl;
             fdmExec->GetFCS()->SetThrottleCmd(0, 1.0);  // Set throttle to 100% for solid rocket ignition
             auto engine = fdmExec->GetPropulsion()->GetEngine(0);
             engine->SetRunning(true);  // Also set engine to running state
@@ -288,7 +395,7 @@ int main(int argc, char* argv[]) {
             fdmExec->SetPropertyValue("contact/unit[0]/spring-coeff-lbs_ft", 0.0);
             fdmExec->SetPropertyValue("contact/unit[1]/spring-coeff-lbs_ft", 0.0);
             
-            std::cout << "Ground contacts disabled for powered flight" << std::endl;
+            // std::cout << "Ground contacts disabled for powered flight" << std::endl;
             
             motor_ignited = true;
         }
@@ -340,16 +447,16 @@ int main(int argc, char* argv[]) {
                 fdmExec->GetPropulsion()->GetTank(0)->SetContents(0.0);
                 
                 engine_shutdown = true;
-                std::cout << "Engine shutdown at t=" << time << "s (fuel=" << propellant_remaining 
-                          << "lbs, burn_time=" << burn_time << "s)" << std::endl;
-                std::cout << "TOTAL IMPULSE DELIVERED: " << total_impulse << " lbf⋅s (expected: 973.27 lbf⋅s)" << std::endl;
+                // std::cout << "Engine shutdown at t=" << time << "s (fuel=" << propellant_remaining 
+                //           << "lbs, burn_time=" << burn_time << "s)" << std::endl;
+                // std::cout << "TOTAL IMPULSE DELIVERED: " << total_impulse << " lbf⋅s (expected: 973.27 lbf⋅s)" << std::endl;
             
                 shutdown_time = time;
             }
         }
 
         if (velocity_magnitude > 0.0f && altitude > liftoff_threshold_agl && !did_liftoff) {
-            std::cout << "Liftoff detected at " << altitude << " ft" << std::endl;
+            // std::cout << "Liftoff detected at " << altitude << " ft" << std::endl;
             did_liftoff = true;
         }
 
@@ -361,11 +468,11 @@ int main(int argc, char* argv[]) {
         // Detect apogee when vertical velocity becomes negative after liftoff
         if (did_liftoff && !reached_apogee && vertical_velocity < -20.0 && altitude > 200.0) { // Very conservative thresholds
             reached_apogee = true;
-            std::cout << "Apogee reached at " << max_altitude << " ft (current alt: " << altitude << " ft)" << std::endl;
+            // std::cout << "Apogee reached at " << max_altitude << " ft (current alt: " << altitude << " ft)" << std::endl;
         }
 
         // Deploy ACS when predicted apogee exceeds goal apogee
-        if (!acs_active && acs_enabled && acs_deployed.exchange(false) && engine_shutdown && time > shutdown_time + 0.5){
+        if (!acs_active && acs_enabled && stm32.acs_deployed() && engine_shutdown && time > shutdown_time + 0.5){
             fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
             std::cout << "t= " << time << "s: ACS deployed at " << altitude << " ft" << std::endl;
             acs_active = true;
@@ -375,40 +482,39 @@ int main(int argc, char* argv[]) {
         if (reached_apogee && !drogue_deployed) {
             fdmExec->SetPropertyValue("external_reactions/drogue_chute/drogue_open", 1); 
             drogue_deployed = true;
-            std::cout << "Drogue chute deployed at " << altitude << " ft" << std::endl;
+            // std::cout << "Drogue chute deployed at " << altitude << " ft" << std::endl;
         }
 
         // Deploy main chute below 550 feet (per requirements) 
         if (reached_apogee && !main_deployed && altitude < 550.0) {
             fdmExec->SetPropertyValue("external_reactions/main_chute/main_open", 1); 
             main_deployed = true;
-            std::cout << "Main chute deployed at " << altitude << " ft" << std::endl;
+            // std::cout << "Main chute deployed at " << altitude << " ft" << std::endl;
         }
 
         // Print and save trajectory data with improved output formatting
         if (fmod(time, print_interval) < 0.001) {  
-
-            std::cout << std::fixed << std::setprecision(1);
-            std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s";
+            // std::cout << std::fixed << std::setprecision(1);
+            // std::cout << "t=" << time << "s: Alt=" << altitude << "ft, Vel=" << velocity_magnitude << "ft/s, Pressure=" << pressure << "kPa";
             
-            // Show flight phase information
-            if (!did_liftoff) {
-                std::cout << " [ON PAD]";
-            } else if (!engine_shutdown) {
-                std::cout << " [POWERED FLIGHT]";
-            } else if (!reached_apogee) {
-                std::cout << " [COASTING UP]";
-            } else if (!drogue_deployed) {
-                std::cout << " [FALLING]";
-            } else if (!main_deployed) {
-                std::cout << " [DROGUE DESCENT]";
-            } else {
-                std::cout << " [MAIN CHUTE]";
-            }
-            std::cout << std::endl;
+            // // Show flight phase information
+            // if (!did_liftoff) {
+            //     std::cout << " [ON PAD]";
+            // } else if (!engine_shutdown) {
+            //     std::cout << " [POWERED FLIGHT]";
+            // } else if (!reached_apogee) {
+            //     std::cout << " [COASTING UP]";
+            // } else if (!drogue_deployed) {
+            //     std::cout << " [FALLING]";
+            // } else if (!main_deployed) {
+            //     std::cout << " [DROGUE DESCENT]";
+            // } else {
+            //     std::cout << " [MAIN CHUTE]";
+            // }
+            // std::cout << std::endl;
         }
 
-        if (acs_deployed) {
+        if (acs_active) {
             print_interval = 10; // lengthen print interval after acs deployment
         }
 
@@ -454,15 +560,20 @@ int main(int argc, char* argv[]) {
         } */
 
         // Send HIL packet to STM32
-        HilPacket pkt{};
-        pkt.yaw = 0x00;
-        pkt.pitch = 0x00;
-        pkt.roll = 0x00;
-        pkt.a_x = 0x00;
-        pkt.a_y = 0x00;
-        pkt.a_z = 0x00;
-        pkt.pressure = 101.325 * pow((1 - (altitude / 145366.45)), (1/0.190284)); 
-        stm32.send(&pkt, sizeof(pkt));
+        build_packet(output_packet, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, 0x00, 0x00, pressure);
+        stm32.send(output_packet, PACKET_LEN);
+
+        auto now = clock::now();
+
+        if (now > next_tick + STEP) {
+            // We missed a deadline — resync
+            next_tick = now + STEP;
+        } else {
+            next_tick += STEP;
+        }
+        std::this_thread::sleep_until(next_tick);
+        
+        // std::cout << "[HIL] Sent packet at t=" << time << "s" << std::endl;
     }
 
     std::cout << "Simulation complete." << std::endl;
