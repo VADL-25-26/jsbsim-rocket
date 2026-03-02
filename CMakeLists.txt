@@ -75,6 +75,18 @@ ${JSBSIM_LIBRARY}
 )
 
 # -----------------------------
+# Build Midscale sim
+# -----------------------------
+add_executable(rocket_sim_midscale rocket_sim_midscale.cpp)
+target_include_directories(rocket_sim_midscale PRIVATE 
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(rocket_sim_midscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(rocket_sim_midscale 
+${JSBSIM_LIBRARY}
+)
+# -----------------------------
 # Copy aircraft config
 # -----------------------------
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft

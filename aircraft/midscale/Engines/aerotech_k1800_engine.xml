@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<rocket_engine name="aerotech_k1800st_ps_engine_us">
+    <isp>240</isp>
+    <builduptime>0.0</builduptime>
+    <thrust_table name="propulsion/thrust_prop_remain" type="internal">
+      <tableData>
+        0.000   11.24
+        0.110   314.7
+        0.220   468.0
+        0.441   449.6
+        0.882   415.9
+        1.323   393.6
+        1.764   382.2
+        2.205   359.7
+        2.425   314.7
+        2.450   269.8
+        2.451   179.8
+        2.452   67.4
+        2.453   2.25
+      </tableData>
+    </thrust_table>
+</rocket_engine>

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+
+<!--
+  File:     aerotech_k1800st_p_engine.xml
+  Description: AeroTech K1800ST-P solid rocket motor data
+  Source: ThrustCurve.org published performance data
+-->
+
+<rocket_engine name="aerotech_k1800st_p_engine">
+    <!-- Use an appropriate average ISP estimate based on total impulse and propellant -->
+    <isp>224.0</isp>
+    <builduptime>0.0</builduptime>
+
+    <thrust_table name="propulsion/thrust_prop_remain" type="internal">
+      <tableData>  <!-- propellant burned | thrust -->
+        0.000   0.00
+        0.100   399.0
+        0.200   460.0
+        0.300   500.0
+        0.400   510.0
+        0.500   505.0
+        0.600   480.0
+        0.700   470.0
+        0.800   460.0
+        0.900   440.0
+        1.000   400.0
+        1.100   340.0
+        1.200   280.0
+        1.300   200.0
+        1.350   120.0
+        1.380   60.0
+        1.400   10.0
+      </tableData>
+    </thrust_table>
+</rocket_engine>

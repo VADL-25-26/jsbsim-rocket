@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+
+<!--
+  File:     aerotech_l1940_engine.xml
+  Description: Aerotech L1940 solid rocket motor - Real Performance Data
+  
+  Specifications (from manufacturer data):
+  - Total impulse: 4,329.2 Ns  
+  - Burn time: 2.2 seconds 
+  - Peak thrust: 2,318.5 N
+  - Profile: Regressive curve (peak, dip, buildup, decline)
+  - Propellant mass: 1,825 g
+  - ISP: ~220 seconds
+  - Real thrust curve data from manufacturer graph
+-->
+
+<rocket_engine name="aerotech_l1940_engine">
+    <isp>244.0</isp>
+    <builduptime>0.0</builduptime>
+    <thrust_table name="propulsion/thrust_prop_remain" type="internal">
+      <tableData>  <!-- propellant burned | thrust -->
+        0.000	10.82
+        0.035	473.73
+        0.062	514.84
+        0.093	483.56
+        0.238	472.29
+        0.663	483.56
+        1.181	484.72
+        1.693	475.77
+        2.434	449.65
+        2.936	426.91
+        3.360	413.58
+        3.512	408.70
+        3.587	371.53
+        3.609	308.99
+        3.639	210.44
+        3.692	120.29
+        3.783	54.09
+        3.836	25.24
+        4.023	1.20
+        
+      </tableData>
+    </thrust_table>
+</rocket_engine> 

@@ -12,73 +12,29 @@
   <description> Models a rocket. </description>
  </fileheader>
 
-<!--
-  File:     rocket.xml
-  Input parameters:
-    Output directory                   : C:\Users\bob\Downloads\
-    Create a subdirectory?             : yes
-    Overwrite?                         : yes
-    Aircraft name                      : rocket
-    Use dedicated system files?        : yes
-    Select a system of measurement     : no
-    Type of aircraft                   : 0
-    Stall speed VS1 (clean, no flaps)  : 795.46
-    Maximum takeoff weight             : 47.00
-    Empty weight                       : 43.00
-    Inertia Ixx                        : 0.01
-    Inertia Iyy                        : 3.50
-    Inertia Izz                        : 1.33
-    Length                             : 9.08
-    Select a wing shape                : 2
-    Wing span                          : 0.50
-    Wing area                          : 0.25
-    Wing aspect ratio                  : 5.50
-    Wing taper ratio                   : 4.00
-    Wing root chord                    : 0.09
-    Wing incidence                     : 0.00
-    Wing dihedral                      : 0.00
-    Wing sweep (quarter chord)         : 0.00
-    Htail area                         : 0.04
-    Htail arm                          : 4.68
-    Vtail area                         : 0.03
-    Vtail arm                          : 4.50
-    Propulsion                         : yes
-    Engine name                        : my_engine
-    Number of engines                  : 1
-    Engine layout                      : 2
-    Engine type                        : 3
-    Engine thrust                      : 444.00
-    Nozzle name                        : my_nozzle
-    Nozzle diameter                    : 0.25
-    Landing Gear                       : no
-    Flaps                              : no
-    Spoilers                           : no
-    Chute                              : yes
--->
-
  <metrics>
-   <wingarea  unit="FT2"> 0.0001 </wingarea>   <!-- No wings on rocket, need small value -->
-   <wingspan  unit="FT" > 0.0    </wingspan>   <!-- No wings on rocket -->
+   <wingarea  unit="FT2"> 0.0001    </wingarea>   <!-- No wings on rocket, need small value -->
+   <wingspan  unit="FT" > 0.0      </wingspan>   <!-- No wings on rocket -->
    <wing_incidence unit="DEG"> 0.00 </wing_incidence>
-   <chord     unit="FT" > 0.0    </chord>      <!-- No wing chord -->
-   <htailarea unit="FT2"> 0.6611 </htailarea>  <!-- 2 fins × 47.6 in² /144  -->
-   <htailarm  unit="FT" > 2.633  </htailarm>   <!-- No tail arm -->
-   <vtailarea unit="FT2"> 0.6611 </vtailarea>  <!-- 2 fins × 47.6 in² /144  -->
-   <vtailarm  unit="FT" > 2.633  </vtailarm>   <!-- Fin arm: 90" - 58.4" = 31.6" -->
+   <chord     unit="FT" > 0.0      </chord>      <!-- No wing chord -->
+   <htailarea unit="FT2"> 0.6611   </htailarea>  <!-- 2 fins × 47.6 in² /144  -->
+   <htailarm  unit="FT" > 2.633     </htailarm>   <!-- No tail arm -->
+   <vtailarea  unit="FT2">0.6611     </vtailarea>  <!-- 2 fins × 47.6 in² /144  -->
+   <vtailarm  unit="FT" > 2.633   </vtailarm>   <!-- Fin arm: 90" - 58.4" = 31.6" -->
    <location name="AERORP" unit="IN">  <!-- Center of Pressure at 68.1" from diagram -->
-     <x> 72.048 </x>
-     <y> 0.00   </y>
-     <z> 0.00   </z>
+     <x> 72.477     </x>  
+     <y> 0.00     </y>
+     <z> 0.00     </z>
    </location>
    <location name="EYEPOINT" unit="FT"> <!-- idk what this is for-->
-     <x> 1.17  </x>
-     <y> -1.50 </y>
-     <z> 3.75  </z>
+     <x> 1.17     </x>
+     <y> -1.50    </y>
+     <z> 3.75     </z>
    </location>
    <location name="VRP" unit="FT">
-     <x> 0.0 </x>
-     <y> 0.0 </y>
-     <z> 0.0 </z>
+     <x>     0.0 </x>
+     <y>     0.0 </y>
+     <z>     0.0 </z>
    </location>
 
    <!-- use this syntax for custom parameters-->
@@ -87,40 +43,40 @@
  </metrics>
 
  <mass_balance>
-   <ixx unit="SLUG*FT2"> 0.02 </ixx>
-   <iyy unit="SLUG*FT2"> 1.8  </iyy>
-   <izz unit="SLUG*FT2"> 1.8  </izz>
-   <emptywt unit="LBS" > 41.3 </emptywt>
-   <location name="CG" unit="IN">
-     <x> 50.604 </x>
-     <y> 0.00   </y>
-     <z> 0.00   </z>
+   <ixx unit="SLUG*FT2">  0.02    </ixx>  <!-- Roll inertia for 6" diameter rocket (much smaller) -->
+   <iyy unit="SLUG*FT2">  1.8     </iyy>   <!-- Pitch/Yaw inertia for 109" rocket (much smaller) -->
+   <izz unit="SLUG*FT2">  1.8     </izz>   <!-- Pitch/Yaw inertia for 109" rocket (much smaller) -->
+   <emptywt unit="LBS" >  41.3 </emptywt>  <!-- Restored to original spec (was 35.0) -->
+   <location name="CG" unit="IN">  <!-- No motor CG" -->
+     <x> 50.6    </x>
+     <y> 0.00     </y>
+     <z> 0.00     </z>
    </location>
 
    <pointmass name="Motor Casing">
-    <description> Aerotech L1940 motor casing mass </description>
-    <weight unit="LBS"> 4.48 </weight>
-    <location name="POINTMASS" unit="IN">
-     <x> 91   </x>
-     <y> 0.00 </y>
-     <z> 0.00 </z>
-    </location>
+    <description> Aerotech K1800 motor casing mass </description>
+    <weight unit="LBS"> 3.66 </weight> 
+    <location name="POINTMASS" unit="IN">  <!-- Motor location at rear -->
+     <x> 96    </x>  <!-- Around 89" from nose -->
+     <y> 0.00     </y>
+     <z> 0.00    </z>
+   </location>
    </pointmass>
  </mass_balance>
 
  <propulsion>
-    <engine file="aerotech_l1940_engine">
+    <engine file="aerotech_k1800_engine">
         <feed>0</feed>
         <running>0</running>
         <starter>0</starter>
         <thruster file="l1940_nozzle">
-            <location unit="IN">
-                <x>102</x>
+            <location unit="IN">  <!-- Motor at rear of rocket -->
+                <x>103</x>  
                 <y>0.0</y>
                 <z>0.0</z>
             </location>
             <orient>
-                <pitch unit="DEG">0.0</pitch>
+                <pitch unit="DEG">0.0</pitch>  <!-- Aligned with body X-axis for forward thrust -->
                 <yaw unit="DEG">0.0</yaw>
             </orient>
         </thruster>
@@ -128,13 +84,13 @@
 
     <tank type="FUEL">
         <fuel_type>FUEL</fuel_type>
-        <location unit="IN">
-            <x>91</x>
+        <location unit="IN">  <!-- Motor fuel location -->
+            <x>96</x>  <!-- Motor center -->
             <y>0.0</y>
             <z>0.0</z>
         </location>
-        <capacity unit="LBS">4.023</capacity>
-        <contents unit="LBS">4.023</contents>
+        <capacity unit="LBS">2.45</capacity>  <!-- K1800 propellant mass -->
+        <contents unit="LBS">2.45</contents>
     </tank>
  </propulsion>
 
@@ -151,9 +107,8 @@
  </flight_control>
 
  <aerodynamics>
-  <!-- (unchanged) -->
-  <property value="0">aero/ACSangle</property>
-  <!-- ... your full aerodynamics remain unchanged ... -->
+  <property value="0">aero/ACSangle</property>  <!-- ACS fin deflection angle in rad -->
+  <!-- ... unchanged aerodynamics omitted for brevity in this message ... -->
  </aerodynamics>
 
  <external_reactions>
@@ -162,12 +117,13 @@
   <property value="0">external_reactions/drogue_chute/drogue_open</property>
   <property value="0">external_reactions/main_chute/main_open</property>
 
-  <!-- LAUNCH RAIL FRICTION (controlled from C++)                          -->
-  <!-- C++ sets:                                                           -->
-  <!--   external_reactions/rail_friction/on        = 0/1                   -->
-  <!--   external_reactions/rail_friction/force_lbs = friction magnitude lbf-->
-  <!-- Force is applied along BODY -X (opposes thrust direction +X).        -->
-
+  <!-- ------------------------------------------------------------------ -->
+  <!-- LAUNCH RAIL FRICTION (controlled from C++)                           -->
+  <!-- C++ sets:                                                            -->
+  <!--   external_reactions/rail_friction/on        = 0/1                    -->
+  <!--   external_reactions/rail_friction/force_lbs = friction magnitude lbf -->
+  <!-- Force is applied along BODY -X (opposes thrust direction +X).         -->
+  <!-- ------------------------------------------------------------------ -->
   <property value="0">external_reactions/rail_friction/on</property>
   <property value="0">external_reactions/rail_friction/force_lbs</property>
 
@@ -187,15 +143,15 @@
 
    <!-- Put at CG so it does not create any artificial pitching moment -->
    <location unit="IN">
-    <x>50.604</x>
-    <y>0.0</y>
-    <z>0.0</z>
+    <x> 50.6 </x>
+    <y> 0.0 </y>
+    <z> 0.0 </z>
    </location>
 
    <direction>
     <x>-1</x>
-    <y>0</y>
-    <z>0</z>
+    <y> 0</y>
+    <z> 0</z>
    </direction>
   </force>
 
@@ -213,13 +169,13 @@
       </table>
     </product>
    </function>
-   <location unit="FT">
+   <location unit="FT">  <!-- Nose of rocket for drogue -->
     <x> 0 </x>
     <y> 0 </y>
     <z> 0 </z>
    </location>
    <direction>
-    <x>-1 </x>
+    <x>-1 </x>  <!-- Opposes forward motion -->
     <y> 0 </y>
     <z> 0 </z>
    </direction>
@@ -239,15 +195,15 @@
       </table>
     </product>
    </function>
-   <location unit="FT">
+   <location unit="FT">  <!-- Nose of rocket for main chute -->
     <x> 0 </x>
     <y> 0 </y>
     <z> 0 </z>
    </location>
    <direction>
-    <x>-1 </x>
+    <x>-1 </x>  <!-- Opposes forward motion -->
     <y> 0 </y>
-    <z> 0 </z>
+    <z> 0 </y>
    </direction>
   </force>
 
@@ -255,16 +211,16 @@
 
  <ground_reactions>
     <contact type="BOGEY" name="LANDING_CONTACT">
-        <location unit="IN">
-            <x>101</x>
+        <location unit="IN">  <!-- Contact point at rocket nozzle (bottom end) -->
+            <x>104</x>  <!-- At nozzle end (103" from nose) -->
             <y>0.0</y>
-            <z>0.25</z>
+            <z>0.25</z>   <!-- At bottom surface of rocket (3" radius = 0.25 ft down from centerline) -->
         </location>
         <static_friction>0.8</static_friction>
         <dynamic_friction>0.7</dynamic_friction>
         <rolling_friction>0.01</rolling_friction>
-        <spring_coeff unit="LBS/FT">0.01</spring_coeff>
-        <damping_coeff unit="LBS/FT/SEC">0.01</damping_coeff>
+        <spring_coeff unit="LBS/FT">0.01</spring_coeff>  <!-- Very weak spring to minimize false triggers -->
+        <damping_coeff unit="LBS/FT/SEC">0.01</damping_coeff>  <!-- Very weak damping -->
         <max_steer unit="DEG">0.0</max_steer>
         <brake_group>NONE</brake_group>
     </contact>
