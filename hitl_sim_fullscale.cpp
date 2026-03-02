@@ -21,6 +21,7 @@
 #include <linux/serial.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
+#include <unordered_map>
 
 constexpr size_t PACKET_LEN = 36;
 
@@ -134,6 +135,14 @@ public:
         return acs_deploy.load(std::memory_order_acquire);
     }
 
+    bool pds_deployed() const {
+        return pds_deploy.load(std::memory_order_acquire);
+    }
+
+    bool prs_deployed() const {
+        return prs_deploy.load(std::memory_order_acquire);
+    }
+
     int get_fd() {
         return port_.native_handle();
     }
@@ -157,16 +166,28 @@ private:
         // Append new bytes to our persistent "waiting" string
         rx_accumulator.append(rx_buf_.data(), n);
 
-        size_t pos = rx_accumulator.find("ACS_PWM_CHANGED\n");
-        if (pos != std::string::npos) {
-            acs_deploy.store(true, std::memory_order_release);
-            std::cout << "[HIL] ACS deploy command received" << std::endl;
+        for (auto it = msg_map.begin(); it != msg_map.end(); ) {
+            const std::string& trigger = it->first;
+            std::atomic<bool>* flag = it->second;
+            
+            size_t pos = rx_accumulator.find(trigger);
+            if (pos != std::string::npos) {
+                flag->store(true, std::memory_order_release);
+                std::cout << "[HIL] Command Recieved: " << trigger << std::endl;
 
-            rx_accumulator.erase(0, pos + 15);
+                rx_accumulator.erase(0, trigger.length());
+
+                // Remove trigger from map since it is guaranteed actuation is a one-time event
+                msg_map.erase(it);
+                // Only expect one command per RX Cycle
+                return;
+            }
+            else {
+                ++it; // Only increment if we didn't erase
+            }
         }
-
-        if (rx_accumulator.size() > 100) {
-            rx_accumulator.erase(0, 50); 
+        if (rx_accumulator.size() > 1000) {
+            rx_accumulator.erase(0, 500); 
         }
     }
 
@@ -177,7 +198,14 @@ private:
     std::atomic<bool> running_;
     std::array<char, 256> rx_buf_;
     std::atomic<bool> acs_deploy{false};
-    std::string rx_accumulator; 
+    std::atomic<bool> prs_deploy{false};
+    std::atomic<bool> pds_deploy{false};
+    std::string rx_accumulator;
+    std::unordered_map<std::string, std::atomic<bool>*> msg_map {
+        {"ACS_PWM_CHANGED\n", &acs_deploy},
+        {"PRS_PWM_CHANGED\n", &prs_deploy},
+        {"PDS_PWM_CHANGED\n", &pds_deploy}
+    };
 };
 
 int main(int argc, char* argv[]) {
@@ -248,6 +276,9 @@ int main(int argc, char* argv[]) {
 
     bool acs_enabled = true;
     bool acs_active = false;
+
+    bool prs_active = false;
+    bool pds_active = false;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
