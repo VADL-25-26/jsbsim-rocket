@@ -75,6 +75,19 @@ ${JSBSIM_LIBRARY}
 )
 
 # -----------------------------
+# Build hitl_sim_midscale
+# -----------------------------
+add_executable(hitl_sim_midscale hitl_sim_midscale.cpp)
+target_include_directories(hitl_sim_midscale PRIVATE 
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(hitl_sim_midscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(hitl_sim_midscale 
+${JSBSIM_LIBRARY}
+)
+
+# -----------------------------
 # Build Midscale sim
 # -----------------------------
 add_executable(rocket_sim_midscale rocket_sim_midscale.cpp)
