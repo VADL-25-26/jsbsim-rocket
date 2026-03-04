@@ -503,7 +503,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Deploy ACS when predicted apogee exceeds goal apogee
-        if (!acs_active && acs_enabled && stm32.acs_deployed() && engine_shutdown && time > shutdown_time + 0.5){
+        if (acs_enabled && !acs_active && stm32.acs_deployed() && engine_shutdown && time > shutdown_time + 0.5){
             fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
             std::cout << "t= " << time << "s: ACS deployed at " << altitude << " ft" << std::endl;
             acs_active = true;
@@ -591,7 +591,7 @@ int main(int argc, char* argv[]) {
         } */
 
         // Send HIL packet to STM32
-        build_packet(output_packet, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, 0x00, 0x00, pressure);
+        build_packet(output_packet, 0x00, 0x00, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, pressure);
         stm32.send(output_packet, PACKET_LEN);
 
         auto now = clock::now();
