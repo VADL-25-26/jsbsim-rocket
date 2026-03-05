@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     // initialize variables for ACS
     bool acs_deployed = false;
     double goal_apogee = 4200; 
-    bool acs_enabled = false;
+    bool acs_enabled = true;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
     // -------------------------------------------------------------------------
     constexpr double PI = 3.14159265358979323846;
     constexpr double rail_length_ft = 14.0;     // assumed rail length (ft)
-    const double rail_mu = 0.50;                // range 0 - 0.20
+    const double rail_mu = 0.0;                // range 0 - 0.20
 
     // keep same style as your midscale: preload is derived from wet weight
     const double preload_per_button_lbf = 49.8 / 3.0; // tune (constant preload at each button)
