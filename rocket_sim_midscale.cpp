@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     // -------------------------------------------------------------------------
     constexpr double PI = 3.14159265358979323846;
     constexpr double rail_length_ft = 14.0;     // assumed rail length (ft)
-    const double rail_mu = 0.20;                // realistic ~0.15 - 0.30
+    const double rail_mu = 0.20;                // range 0 - 0.20
     const double preload_per_button_lbf = 47.4 / 3.0; // tune (constant preload at each button)
     const double preload_total_lbf = 3.0 * preload_per_button_lbf;
 
