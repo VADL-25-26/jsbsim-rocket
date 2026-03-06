@@ -49,9 +49,20 @@ int main(int argc, char* argv[]) {
     fdmExec->GetIC()->SetAltitudeASLFtIC(5);    // Start slightly higher to avoid ground contact
     fdmExec->GetIC()->SetLatitudeDegIC(34.90115786777616);
     fdmExec->GetIC()->SetLongitudeDegIC(-86.61568310338117);
-    fdmExec->GetIC()->SetThetaDegIC(90.0);         // 0° forward tilt (subtract from 90)
+
+    // --- LAUNCH RAIL CANT / AZIMUTH (same style as midscale) ---
+    double rail_tilt_from_vertical_deg = 5.0;  // 0 = straight up
+    double rail_azimuth_deg = 180;           // direction you want it to lean toward (180 = point south, into north wind)
+
+    // (old hard-coded IC angles kept, but replaced by the rail variables below)
+    // fdmExec->GetIC()->SetThetaDegIC(90.0);         // 0° forward tilt (subtract from 90)
+    // fdmExec->GetIC()->SetPhiDegIC(0.0);            // No roll
+    // fdmExec->GetIC()->SetPsiDegIC(180.0);          // Point south (into north wind)
+
+    fdmExec->GetIC()->SetThetaDegIC(90.0 - rail_tilt_from_vertical_deg);
+    fdmExec->GetIC()->SetPsiDegIC(rail_azimuth_deg);
     fdmExec->GetIC()->SetPhiDegIC(0.0);            // No roll
-    fdmExec->GetIC()->SetPsiDegIC(180.0);          // Point south (into north wind)
+
     fdmExec->GetIC()->SetVNorthFpsIC(0.0);
     fdmExec->GetIC()->SetVEastFpsIC(0.0);
     fdmExec->GetIC()->SetVDownFpsIC(0.0);          // No initial velocity
@@ -68,7 +79,7 @@ int main(int argc, char* argv[]) {
     // initialize variables for ACS
     bool acs_deployed = false;
     double goal_apogee = 4200; 
-    bool acs_enabled = true;
+    bool acs_enabled = false;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -82,10 +93,23 @@ int main(int argc, char* argv[]) {
     // Enable realistic atmospheric turbulence and wind for final testing
     fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);      // Moderate turbulence
     fdmExec->SetPropertyValue("atmosphere/turb-gain", 1.0);      // Normal gain
-    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0); 
-    fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
-    fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
-    
+
+    // --- WIND SPEED (same style as midscale) ---
+    auto mph_to_fps = [](double mph){ return mph * 1.4666666667; };
+
+    // Wind Speed
+    double wind_north_mph = 0;   // + = wind toward north in JSBSim NED convention (check your sign expectation)
+    double wind_east_mph  = 0;
+
+    // (old hard-coded wind kept, but replaced by mph variables below)
+    // fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0);
+    // fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
+    // fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
+
+    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", mph_to_fps(wind_north_mph));
+    fdmExec->SetPropertyValue("atmosphere/wind-east-fps",  mph_to_fps(wind_east_mph));
+    fdmExec->SetPropertyValue("atmosphere/wind-down-fps",  0.0);
+
     // Debug: Check current wind conditions
     std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
     std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (5 mph)" << std::endl;
@@ -116,16 +140,60 @@ int main(int argc, char* argv[]) {
     double initial_longitude = -86.61568310338117; // Launch longitude
     double initial_altitude = 5;   // Launch altitude
     double cg_x = 0.0; 
-    double mass = 50.4; // wet mass (lbs)
+    double mass = 48.2; // wet mass (lbs)
 
     // initialize variables for acceleration derivation
     double last_vertical_velocity = 0.0;
     double vertical_acceleration = 0.0;
 
     // Initialize RK4 model
-    Rk4 predictor(10, 2.14, 47.08/2.205, 0.01824); // (hz, CD, drymass [kg], cross-section area [m^2])
+    Rk4 predictor(10, 2.2, 20.628, 0.01824); // (hz, CD, drymass [kg], cross-section area [m^2])
     double predicted_apogee = 0;
-    
+
+    // -------------------------------------------------------------------------
+    // RAIL FRICTION MODEL (constant force along rocket axis while on the rail)
+    //
+    // Requires the vehicle XML to include an external_reactions force named
+    // "rail_friction" with properties:
+    //   external_reactions/rail_friction/on        (0 or 1)
+    //   external_reactions/rail_friction/force_lbs (force magnitude in lbf)
+    //
+    // We assume a 14 ft rail and apply a resistive force along BODY -X (opposes
+    // thrust direction +X) until the rocket has traveled 14 ft along body +X.
+    //
+    // This version models:
+    //   F_fric = mu * (N_preload + W*sin(tilt_from_vertical))
+    // where N_preload is a constant button/rail preload (lbf).
+    // -------------------------------------------------------------------------
+    constexpr double PI = 3.14159265358979323846;
+    constexpr double rail_length_ft = 14.0;     // assumed rail length (ft)
+    const double rail_mu = 0.0;                // range 0 - 0.20
+
+    // keep same style as your midscale: preload is derived from wet weight
+    const double preload_per_button_lbf = 49.8 / 3.0; // tune (constant preload at each button)
+    const double preload_total_lbf = 3.0 * preload_per_button_lbf;
+
+    double rail_s_ft = 0.0;   // integrated distance along body +X (ft)
+    bool on_rail = false;     // becomes true at ignition, false after rail exit
+
+    // Initialize rail friction properties (off initially)
+    fdmExec->SetPropertyValue("external_reactions/rail_friction/on", 0.0);
+    fdmExec->SetPropertyValue("external_reactions/rail_friction/force_lbs", 0.0);
+
+    auto compute_rail_friction_lbf = [&]() -> double {
+        // weight in lbf
+        const double weight_lbf = fdmExec->GetPropertyValue("inertial/weight-lbs");
+        const double tilt_rad = rail_tilt_from_vertical_deg * (PI / 180.0);
+
+        // crude estimate of lateral (rail-normal) load from gravity due to rail tilt
+        const double N_from_tilt_lbf = weight_lbf * std::sin(tilt_rad);
+
+        // total normal force used for Coulomb friction
+        const double N_total_lbf = preload_total_lbf + std::abs(N_from_tilt_lbf);
+
+        return rail_mu * N_total_lbf;
+    };
+
     std::cout << "Starting L1940 rocket simulation" << std::endl;
     std::cout << "Expected apogee (no ACS): ~4400ft" << std::endl;
     std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
@@ -152,15 +220,6 @@ int main(int argc, char* argv[]) {
         double velocity_magnitude = sqrt(vx*vx + vy*vy + vz*vz);
         double vertical_velocity = -vz; // In JSBSim: positive Z is down, so -Z is up
         
-        // Get body acceleration
-        /* double a_x = fdmExec->GetAccelerations()->GetUVWdot(1);
-        double a_y = fdmExec->GetAccelerations()->GetUVWdot(2);
-        double a_z = fdmExec->GetAccelerations()->GetUVWdot(3); */
-
-        /* // integrate vertical acceleration
-        vertical_acceleration = (vertical_velocity - last_vertical_velocity) / dt;
-        last_vertical_velocity = vertical_velocity; */
-
         // Body acceleration vector (ft/s²)
         JSBSim::FGColumnVector3 a_body = fdmExec->GetAccelerations()->GetBodyAccel();
 
@@ -180,22 +239,6 @@ int main(int argc, char* argv[]) {
             std::cout << "Terminating simulation to prevent crash..." << std::endl;
             break;
         }
-
-        /* // Simple velocity debugging during motor burn only
-        if (motor_ignited && time < 1.0 && fmod(time, 0.5) < 0.01) {
-            std::cout << "DEBUG: Altitude=" << altitude << "ft, Vertical_vel=" << vertical_velocity << "ft/s" << std::endl;
-        }
-
-        // Debug angular orientation during early flight
-        if (time < 5.0 && fmod(time, 0.2) < 0.01) {
-            double pitch_deg = fdmExec->GetPropagate()->GetEuler(2) * 180.0 / 3.14159; // Theta (pitch)
-            double yaw_deg = fdmExec->GetPropagate()->GetEuler(3) * 180.0 / 3.14159;   // Psi (yaw) 
-            double roll_deg = fdmExec->GetPropagate()->GetEuler(1) * 180.0 / 3.14159;  // Phi (roll)
-            
-            std::cout << "ORIENTATION t=" << std::fixed << std::setprecision(2) << time 
-                      << "s: Pitch=" << std::setprecision(1) << pitch_deg 
-                      << "°, Yaw=" << yaw_deg << "°, Roll=" << roll_deg << "°" << std::endl;
-        } */
 
         // Ignite motor at scheduled time using throttle setting for solid rockets
         if (!motor_ignited && time >= ignition_time) {
@@ -220,33 +263,54 @@ int main(int argc, char* argv[]) {
             fdmExec->SetPropertyValue("contact/unit[1]/spring-coeff-lbs_ft", 0.0);
             
             std::cout << "Ground contacts disabled for powered flight" << std::endl;
+
+            // -----------------------------------------------------------------
+            // TURN ON RAIL FRICTION AT IGNITION
+            // (will remain on until we integrate 14 ft along the rail)
+            // -----------------------------------------------------------------
+            rail_s_ft = 0.0;
+            on_rail = true;
+
+            const double F_fric_lbf = compute_rail_friction_lbf();
+            fdmExec->SetPropertyValue("external_reactions/rail_friction/force_lbs", F_fric_lbf);
+            fdmExec->SetPropertyValue("external_reactions/rail_friction/on", 1.0);
+
+            std::cout << "Rail friction enabled: mu=" << rail_mu
+                      << ", preload_total=" << preload_total_lbf << " lbf"
+                      << ", tilt=" << rail_tilt_from_vertical_deg << " deg"
+                      << ", F_fric=" << F_fric_lbf << " lbf" << std::endl;
             
             motor_ignited = true;
         }
 
-        /* // Debug output for engine state during motor burn phase
-        if (motor_ignited && time < 3.0) {  // Shortened from 5.0s to cover the 2.1s burn + coast
-            if (time - ignition_time < 0.2 || fmod(time, 0.5) < 0.01) {  // Show for first 0.2s, then every 0.5s
-                auto engine = fdmExec->GetPropulsion()->GetEngine(0);
-                double throttle = fdmExec->GetFCS()->GetThrottlePos(0);
-                double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
-                double propellant_consumed = 3.9 - propellant_remaining;
-                double burn_percentage = (propellant_consumed / 3.9) * 100.0;
-                
-                // Integrate impulse
-                double dt = time - last_time;
-                if (dt > 0) {
-                    total_impulse += engine->GetThrust() * dt;
-                }
-                
-                std::cout << "t=" << std::fixed << std::setprecision(2) << time << "s: "
-                          << "Thrust=" << std::setprecision(1) << engine->GetThrust() << "lbs, " 
-                          << "Fuel=" << std::setprecision(2) << propellant_remaining << "lbs, "
-                          << "Burn=" << std::setprecision(1) << burn_percentage << "%, "
-                          << "Impulse=" << std::setprecision(1) << total_impulse << "lbf⋅s" << std::endl;
+        // ---------------------------------------------------------------------
+        // RAIL FRICTION APPLICATION (distance-based cut-off at 14 ft)
+        //
+        // Integrate distance traveled along the rocket body +X axis, then disable
+        // the constant friction force once the rail length is exceeded.
+        // ---------------------------------------------------------------------
+        if (motor_ignited && on_rail && dt > 0.0) {
+            // Body-axis forward speed (ft/s). In JSBSim body axes: X forward, Y right, Z down.
+            double u_fps = fdmExec->GetPropertyValue("velocities/u-fps");
+
+            // Integrate only forward motion (avoid subtracting due to noise)
+            if (u_fps > 0.0) rail_s_ft += u_fps * dt;
+
+            // Optionally update friction during burn (weight changes slightly)
+            const double F_fric_lbf = compute_rail_friction_lbf();
+            fdmExec->SetPropertyValue("external_reactions/rail_friction/force_lbs", F_fric_lbf);
+            fdmExec->SetPropertyValue("external_reactions/rail_friction/on", 1.0);
+
+            if (rail_s_ft >= rail_length_ft) {
+                on_rail = false;
+                fdmExec->SetPropertyValue("external_reactions/rail_friction/on", 0.0);
+                fdmExec->SetPropertyValue("external_reactions/rail_friction/force_lbs", 0.0);
+
+                std::cout << "Rail exit detected at t=" << time
+                          << "s (rail_s=" << rail_s_ft << " ft). Rail friction disabled." << std::endl;
             }
-        } */
-        
+        }
+
         // Continue impulse integration even after debug output stops
         if (motor_ignited && !engine_shutdown) {
             auto engine = fdmExec->GetPropulsion()->GetEngine(0);
@@ -262,7 +326,7 @@ int main(int argc, char* argv[]) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
             
-            if (burn_time >= 2.04) {  // MECO after 2.3 s (L1940 burn time)
+            if (burn_time >= (1.942)) {  // MECO after 2.2 s (L1940 burn time) 2.04
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 engine->SetRunning(false);
                 fdmExec->GetFCS()->SetThrottleCmd(0, 0.0);
@@ -300,7 +364,6 @@ int main(int argc, char* argv[]) {
             fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
             acs_deployed = true;
             std::cout << "t=" << time << "s, Pred. Apogee: " << predicted_apogee << "ft, ACS Deployed at " << altitude << " ft" << std::endl;
-
         }
 
         // Deploy drogue chute at apogee
@@ -361,7 +424,6 @@ int main(int argc, char* argv[]) {
         
         outputFile << time << "," << x_pos << "," << y_pos << "," << z_pos << "," 
         << altitude << "," << vertical_velocity << "," << vertical_acceleration << "," 
-        //<< a_x << "," << a_y << "," << a_z << ","
         << drogue_deployed << "," << main_deployed << ","
         << cg_x << "," << mass << "," << predicted_apogee << "\n";
 
@@ -369,22 +431,6 @@ int main(int argc, char* argv[]) {
             std::cout << "Rocket has reached the ground after flight." << std::endl;
             break;
         }
-
-        /* // Add detailed monitoring during descent phase
-        if (reached_apogee && altitude < 700.0 && time > 11.0) {
-            if (fmod(time, 0.1) < 0.01) {  // Every 0.1 seconds during critical descent
-                double alpha = fdmExec->GetAuxiliary()->Getalpha() * 180.0/3.14159; // Convert to degrees
-                double beta = fdmExec->GetAuxiliary()->Getbeta() * 180.0/3.14159;
-                double mach = fdmExec->GetAuxiliary()->GetMach();
-                double qbar = fdmExec->GetAuxiliary()->Getqbar();
-                
-                std::cout << "DESCENT DEBUG t=" << std::fixed << std::setprecision(1) << time 
-                          << "s: Alt=" << altitude << "ft, VMag=" << velocity_magnitude 
-                          << "ft/s, VZ=" << vertical_velocity << "ft/s" << std::endl;
-                std::cout << "  Alpha=" << alpha << "deg, Beta=" << beta 
-                          << "deg, Mach=" << mach << ", Qbar=" << qbar << "psf" << std::endl;
-            }
-        } */
     }
 
     std::cout << "Simulation complete." << std::endl;

@@ -591,7 +591,7 @@ int main(int argc, char* argv[]) {
         } */
 
         // Send HIL packet to STM32
-        build_packet(output_packet, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, 0x00, 0x00, pressure);
+        build_packet(output_packet, 0x00, 0x00, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, pressure);
         stm32.send(output_packet, PACKET_LEN);
 
         auto now = clock::now();

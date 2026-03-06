@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<JSBSim::FGFDMExec> fdmExec(new JSBSim::FGFDMExec());
 
     // Set the simulation to run at 200 Hz (matching VN100 speed)
-    fdmExec->Setdt(1.0 / 400.0);
+    fdmExec->Setdt(1.0 / 210.0);
 
     // select which rocket to simulate
     std::string aircraftName = "fullscale";
@@ -255,10 +255,10 @@ int main(int argc, char* argv[]) {
     }
 
     // Set initial conditions for launch into wind - REALISTIC LAUNCH TECHNIQUE (CORRECTED)
-    fdmExec->GetIC()->SetAltitudeASLFtIC(10.5);    // Start slightly higher to avoid ground contact
+    fdmExec->GetIC()->SetAltitudeASLFtIC(5);    // Start slightly higher to avoid ground contact
     fdmExec->GetIC()->SetLatitudeDegIC(34.90115786777616);
     fdmExec->GetIC()->SetLongitudeDegIC(-86.61568310338117);
-    fdmExec->GetIC()->SetThetaDegIC(90.0);         // 0° forward tilt (subtract from 90)
+    fdmExec->GetIC()->SetThetaDegIC(85.0);         // 0° forward tilt (subtract from 90)
     fdmExec->GetIC()->SetPhiDegIC(0.0);            // No roll
     fdmExec->GetIC()->SetPsiDegIC(180.0);          // Point south (into north wind)
     fdmExec->GetIC()->SetVNorthFpsIC(0.0);
@@ -274,11 +274,9 @@ int main(int argc, char* argv[]) {
     fdmExec->SetPropertyValue("fcs/aileron-cmd-norm", 0.0);
     fdmExec->SetPropertyValue("fcs/rudder-cmd-norm", 0.0);
 
-    bool acs_enabled = true;
+    // initialize variables for ACS
     bool acs_active = false;
-
-    bool prs_active = false;
-    bool pds_active = false;
+    bool acs_enabled = true;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
@@ -292,21 +290,34 @@ int main(int argc, char* argv[]) {
     // Enable realistic atmospheric turbulence and wind for final testing
     fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);      // Moderate turbulence
     fdmExec->SetPropertyValue("atmosphere/turb-gain", 1.0);      // Normal gain
-    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0); 
-    fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
-    fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
-    
-    // // Debug: Check current wind conditions
-    // std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
-    // std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (5 mph)" << std::endl;
-    // std::cout << "Wind East:  " << fdmExec->GetPropertyValue("atmosphere/wind-east-fps") << " fps" << std::endl;
-    // std::cout << "Wind Down:  " << fdmExec->GetPropertyValue("atmosphere/wind-down-fps") << " fps" << std::endl;
-    // std::cout << "Wind Mag:   " << fdmExec->GetPropertyValue("atmosphere/wind-mag-fps") << " fps" << std::endl;
-    // std::cout << "Turb Rate:  " << fdmExec->GetPropertyValue("atmosphere/turb-rate") << std::endl;
-    // std::cout << "=========================================" << std::endl;
+
+    // --- WIND SPEED (same style as midscale) ---
+    auto mph_to_fps = [](double mph){ return mph * 1.4666666667; };
+
+    // Wind Speed
+    double wind_north_mph = 0;   // + = wind toward north in JSBSim NED convention (check your sign expectation)
+    double wind_east_mph  = 0;
+
+    // (old hard-coded wind kept, but replaced by mph variables below)
+    // fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0);
+    // fdmExec->SetPropertyValue("atmosphere/wind-east-fps", 0.0);   // No east wind
+    // fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
+
+    fdmExec->SetPropertyValue("atmosphere/wind-north-fps", mph_to_fps(wind_north_mph));
+    fdmExec->SetPropertyValue("atmosphere/wind-east-fps",  mph_to_fps(wind_east_mph));
+    fdmExec->SetPropertyValue("atmosphere/wind-down-fps",  0.0);
+
+    // Debug: Check current wind conditions
+    std::cout << "\n=== REALISTIC ATMOSPHERIC CONDITIONS ===" << std::endl;
+    std::cout << "Wind North: " << fdmExec->GetPropertyValue("atmosphere/wind-north-fps") << " fps (5 mph)" << std::endl;
+    std::cout << "Wind East:  " << fdmExec->GetPropertyValue("atmosphere/wind-east-fps") << " fps" << std::endl;
+    std::cout << "Wind Down:  " << fdmExec->GetPropertyValue("atmosphere/wind-down-fps") << " fps" << std::endl;
+    std::cout << "Wind Mag:   " << fdmExec->GetPropertyValue("atmosphere/wind-mag-fps") << " fps" << std::endl;
+    std::cout << "Turb Rate:  " << fdmExec->GetPropertyValue("atmosphere/turb-rate") << std::endl;
+    std::cout << "=========================================" << std::endl;
 
     // Open an output file to save the trajectory data
-    std::ofstream outputFile("hitl_fullscale_trajectory.csv");
+    std::ofstream outputFile("fullscale_trajectory.csv");
     outputFile 
     << "Time,X_ft,Y_ft,Z_ft,Altitude,Vertical_Velocity,Vertical_Acceleration,"
        "Drogue_Deployed,Main_Deployed,"
@@ -326,15 +337,59 @@ int main(int argc, char* argv[]) {
     double initial_longitude = -86.61568310338117; // Launch longitude
     double initial_altitude = 5;   // Launch altitude
     double cg_x = 0.0; 
-    double mass = 50.4; // wet mass (lbs)
+    double mass = 48.2; // wet mass (lbs)
 
     // initialize variables for acceleration derivation
     double last_vertical_velocity = 0.0;
     double vertical_acceleration = 0.0;
 
-    
-    // std::cout << "Starting L1940 rocket simulation" << std::endl;
-    // std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
+    // -------------------------------------------------------------------------
+    // RAIL FRICTION MODEL (constant force along rocket axis while on the rail)
+    //
+    // Requires the vehicle XML to include an external_reactions force named
+    // "rail_friction" with properties:
+    //   external_reactions/rail_friction/on        (0 or 1)
+    //   external_reactions/rail_friction/force_lbs (force magnitude in lbf)
+    //
+    // We assume a 14 ft rail and apply a resistive force along BODY -X (opposes
+    // thrust direction +X) until the rocket has traveled 14 ft along body +X.
+    //
+    // This version models:
+    //   F_fric = mu * (N_preload + W*sin(tilt_from_vertical))
+    // where N_preload is a constant button/rail preload (lbf).
+    // -------------------------------------------------------------------------
+    constexpr double PI = 3.14159265358979323846;
+    constexpr double rail_length_ft = 14.0;     // assumed rail length (ft)
+    const double rail_mu = 0.0;                // range 0 - 0.20
+
+    // keep same style as your midscale: preload is derived from wet weight
+    const double preload_per_button_lbf = 49.8 / 3.0; // tune (constant preload at each button)
+    const double preload_total_lbf = 3.0 * preload_per_button_lbf;
+
+    double rail_s_ft = 0.0;   // integrated distance along body +X (ft)
+    bool on_rail = false;     // becomes true at ignition, false after rail exit
+
+    // Initialize rail friction properties (off initially)
+    fdmExec->SetPropertyValue("external_reactions/rail_friction/on", 0.0);
+    fdmExec->SetPropertyValue("external_reactions/rail_friction/force_lbs", 0.0);
+
+    auto compute_rail_friction_lbf = [&]() -> double {
+        // weight in lbf
+        const double weight_lbf = fdmExec->GetPropertyValue("inertial/weight-lbs");
+        const double tilt_rad = 5 * (PI / 180.0);
+
+        // crude estimate of lateral (rail-normal) load from gravity due to rail tilt
+        const double N_from_tilt_lbf = weight_lbf * std::sin(tilt_rad);
+
+        // total normal force used for Coulomb friction
+        const double N_total_lbf = preload_total_lbf + std::abs(N_from_tilt_lbf);
+
+        return rail_mu * N_total_lbf;
+    };
+
+    std::cout << "Starting L1940 rocket simulation" << std::endl;
+    std::cout << "Expected apogee (no ACS): ~4400ft" << std::endl;
+    std::cout << "Motor ignition scheduled for t=" << ignition_time << " seconds" << std::endl;
 
     float liftoff_threshold_agl = 10.0f;
     bool did_liftoff = false;
@@ -469,7 +524,7 @@ int main(int argc, char* argv[]) {
             double propellant_remaining = fdmExec->GetPropulsion()->GetTank(0)->GetContents();
             double burn_time = time - ignition_time;
             
-            if (burn_time >= 2.3) {  // MECO after 2.3 s (L1940 burn time)
+            if (burn_time >= 1.942) {  // MECO after 2.3 s (L1940 burn time)
                 auto engine = fdmExec->GetPropulsion()->GetEngine(0);
                 engine->SetRunning(false);
                 fdmExec->GetFCS()->SetThrottleCmd(0, 0.0);
@@ -503,7 +558,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Deploy ACS when predicted apogee exceeds goal apogee
-        if (!acs_active && acs_enabled && stm32.acs_deployed() && engine_shutdown && time > shutdown_time + 0.5){
+        if (acs_enabled && !acs_active && stm32.acs_deployed() && engine_shutdown && time > shutdown_time + 0.5){
             fdmExec->SetPropertyValue("aero/ACSangle", 90*(M_PI/180)); // set acs to 90 deg (needs radians)
             std::cout << "t= " << time << "s: ACS deployed at " << altitude << " ft" << std::endl;
             acs_active = true;
@@ -591,7 +646,7 @@ int main(int argc, char* argv[]) {
         } */
 
         // Send HIL packet to STM32
-        build_packet(output_packet, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, 0x00, 0x00, pressure);
+        build_packet(output_packet, 0x00, 0x00, 0x00, 0x00, 0x00, vertical_acceleration * 0.3048f, pressure);
         stm32.send(output_packet, PACKET_LEN);
 
         auto now = clock::now();

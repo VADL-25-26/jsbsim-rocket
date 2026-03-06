@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     // initialize variables for ACS
     bool acs_deployed = false;
     double goal_apogee = 1600; 
-    bool acs_enabled = false;
+    bool acs_enabled = true;
 
     // Initialize variables for parachute deployment
     bool drogue_deployed = false;
