@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+
+<!-- Approximate nozzle for an AeroTech 54 mm I600R reload.
+     Exit diameter is not in the spreadsheet, so this uses a conservative
+     near-zero effective area because the I600R thrust table is already the delivered thrust curve. Replace when manufacturer nozzle geometry is available. -->
+<nozzle name="i600r_nozzle">
+  <pe unit="PSF">0.0</pe>
+  <area unit="FT2">0.000001</area>
+</nozzle>

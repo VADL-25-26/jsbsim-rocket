@@ -7,6 +7,7 @@
 #include <FGFDMExec.h>
 #include <initialization/FGInitialCondition.h>
 #include <models/FGInertial.h>
+#include <models/FGAtmosphere.h>
 #include <models/FGPropulsion.h>
 #include <models/FGMassBalance.h>
 #include <models/FGFCS.h>
@@ -26,10 +27,6 @@
 #include <sstream>
 #include <cstdlib>
 #include "RK4.h"
-
-#ifndef DEFAULT_AIRCRAFT_NAME
-#define DEFAULT_AIRCRAFT_NAME "fullscale"
-#endif
 
 constexpr size_t PACKET_LEN = 48;
 constexpr float FT_TO_M = 0.3048f;
@@ -422,6 +419,25 @@ int main(int argc, char* argv[]) {
     auto next_tick = clock::now() + STEP;
     uint8_t output_packet[PACKET_LEN];
 
+    // Dedicated 2026 summer subscale HIL executable. Keep the aircraft fixed
+    // so midscale/fullscale command-line choices cannot affect this run.
+    const std::string aircraftName = "summer_subscale_2026";
+    std::string attitudeReplayPath;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--attitude-replay") {
+            if (i + 1 >= argc) {
+                std::cerr << "Usage: " << argv[0] << " [--attitude-replay flight.csv]" << std::endl;
+                return 1;
+            }
+            attitudeReplayPath = argv[++i];
+        } else {
+            std::cerr << "Usage: " << argv[0] << " [--attitude-replay flight.csv]" << std::endl;
+            return 1;
+        }
+    }
+
     SerialLink stm32("/dev/ttyACM0", 115200);  // adjust ttyS*
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     ::tcflush(stm32.get_fd(), TCIFLUSH);
@@ -438,28 +454,6 @@ int main(int argc, char* argv[]) {
 
     // Set the simulation to run at 200 Hz (matching VN100 speed)
     fdmExec->Setdt(1.0 / 400.0);
-
-    // select which rocket to simulate
-    std::string aircraftName = DEFAULT_AIRCRAFT_NAME;
-    std::string attitudeReplayPath;
-
-    bool aircraftNameSet = false;
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "--attitude-replay") {
-            if (i + 1 >= argc) {
-                std::cerr << "Usage: " << argv[0] << " [aircraft_name] [--attitude-replay flight.csv]" << std::endl;
-                return 1;
-            }
-            attitudeReplayPath = argv[++i];
-        } else if (!aircraftNameSet) {
-            aircraftName = arg;
-            aircraftNameSet = true;
-        } else {
-            std::cerr << "Usage: " << argv[0] << " [aircraft_name] [--attitude-replay flight.csv]" << std::endl;
-            return 1;
-        }
-    }
 
     std::vector<AttitudeReplaySample> attitudeReplay;
     if (!attitudeReplayPath.empty() && !load_attitude_replay(attitudeReplayPath, attitudeReplay)) {
@@ -486,15 +480,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Set initial conditions for launch. Summer subscale values mirror the
-    // OpenRocket setup: 28.61 N, 80.6 W, 0 m pad altitude, 0 deg rod angle.
-    // The JSBSim body starts 1 m above the contact plane to avoid immediate ground-contact termination.
-    const double launch_altitude_ft = is_summer_subscale ? 3.28084 : 10.5;
-    const double launch_latitude_deg = is_summer_subscale ? 28.61 : 34.90115786777616;
-    const double launch_longitude_deg = is_summer_subscale ? -80.6 : -86.61568310338117;
-    const double rail_tilt_from_vertical_deg = is_summer_subscale ? 5.0 : 0.0;
-    const double rail_azimuth_deg = is_summer_subscale ? 90.0 : 180.0;
+    // Gallatin, Tennessee launch conditions.
+    const double launch_terrain_elevation_ft = is_summer_subscale ? 545.0 : 0.0;
+    const double launch_altitude_ft =
+        is_summer_subscale ? launch_terrain_elevation_ft + 3.28084 : 10.5;
+    const double launch_latitude_deg = is_summer_subscale ? 36.388303 : 34.90115786777616;
+    const double launch_longitude_deg = is_summer_subscale ? -86.44759 : -86.61568310338117;
+    const double rail_tilt_from_vertical_deg = is_summer_subscale ? 5.25 : 0.0;
+    const double rail_azimuth_deg = is_summer_subscale ? 270.0 : 180.0;
 
+    fdmExec->GetIC()->SetTerrainElevationFtIC(launch_terrain_elevation_ft);
     fdmExec->GetIC()->SetAltitudeASLFtIC(launch_altitude_ft);
     fdmExec->GetIC()->SetLatitudeDegIC(launch_latitude_deg);
     fdmExec->GetIC()->SetLongitudeDegIC(launch_longitude_deg);
@@ -538,12 +533,32 @@ int main(int argc, char* argv[]) {
 
     // Initialize the model
     fdmExec->RunIC();
+
+    const double desired_launch_temperature_c = 31.5;
+    const double desired_launch_temperature_r =
+        (desired_launch_temperature_c + 273.15) * 1.8;
+    const double standard_launch_temperature_r =
+        fdmExec->GetPropertyValue("atmosphere/T-R");
+    fdmExec->SetPropertyValue("atmosphere/delta-T",
+                              desired_launch_temperature_r - standard_launch_temperature_r);
+    fdmExec->GetAtmosphere()->Run(false);
+    if (is_summer_subscale) {
+        constexpr double target_pad_pressure_kpa = 101.76098;
+        constexpr double kpa_to_psf = 20.885434273;
+        const double current_pad_pressure_psf = fdmExec->GetPropertyValue("atmosphere/P-psf");
+        const double current_sea_level_pressure_psf = fdmExec->GetPropertyValue("atmosphere/P-sl-psf");
+        fdmExec->SetPropertyValue("atmosphere/P-sl-psf",
+            current_sea_level_pressure_psf *
+            (target_pad_pressure_kpa * kpa_to_psf / current_pad_pressure_psf));
+        fdmExec->GetAtmosphere()->Run(false);
+    }
     
     // Enable realistic atmospheric turbulence and wind for final testing
     fdmExec->SetPropertyValue("atmosphere/turb-rate", 0.1);
     fdmExec->SetPropertyValue("atmosphere/turb-gain", 1.0);
     fdmExec->SetPropertyValue("atmosphere/wind-north-fps", 0.0);
-    fdmExec->SetPropertyValue("atmosphere/wind-east-fps", is_summer_subscale ? 2.0 * 3.280839895 : 0.0);
+    fdmExec->SetPropertyValue("atmosphere/wind-east-fps",
+                              is_summer_subscale ? (7.5 * 5280.0 / 3600.0) : 0.0);
     fdmExec->SetPropertyValue("atmosphere/wind-down-fps", 0.0);   // No vertical wind
     
     // // Debug: Check current wind conditions
@@ -587,7 +602,7 @@ int main(int argc, char* argv[]) {
     double vertical_acceleration = 0.0;
 
     // Keep the HIL CSV predicted-apogee column populated like the standalone sim.
-    Rk4 predictor(10, 2.14, 47.08/2.205, 0.01824); // (hz, CD, drymass [kg], cross-section area [m^2])
+    Rk4 predictor(10, 0.56, 47.08/2.205, 0.01824); // (hz, ascent CD, drymass [kg], cross-section area [m^2])
     double predicted_apogee = 0.0;
 
     
@@ -598,14 +613,15 @@ int main(int argc, char* argv[]) {
     bool did_liftoff = false;
 
     // Run the simulation loop - extended for high altitude flight
-    while (fdmExec->GetSimTime() < 120.0 && fdmExec->GetPropagate()->GetAltitudeASL() >= -10.0) {
+    while (fdmExec->GetSimTime() < 120.0 && fdmExec->GetPropagate()->GetAltitudeASL() >= launch_terrain_elevation_ft - 10.0) {
         // Run the JSBSim simulation for one time step
         fdmExec->Run();
 
         // Get current state
         double time = fdmExec->GetSimTime();
         double altitude = fdmExec->GetPropagate()->GetAltitudeASL();
-        float pressure = 101.325 * powf32((1.0f - (altitude / 145366.45)), (1.0f/0.190284f)); // Altitude to pressure (ft to kPa
+        double altitude_agl = altitude - launch_terrain_elevation_ft;
+        float pressure = static_cast<float>(fdmExec->GetPropertyValue("atmosphere/P-psf") * 0.04788025898); // psf to kPa
         double dt = time - last_time;
         
         // Get velocity components for proper apogee detection
@@ -777,18 +793,18 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (velocity_magnitude > 0.0f && altitude > liftoff_threshold_agl && !did_liftoff) {
-            // std::cout << "Liftoff detected at " << altitude << " ft" << std::endl;
+        if (velocity_magnitude > 0.0f && altitude_agl > liftoff_threshold_agl && !did_liftoff) {
+            // std::cout << "Liftoff detected at " << altitude_agl << " ft" << std::endl;
             did_liftoff = true;
         }
 
         // Track maximum altitude and detect apogee more robustly
-        if (did_liftoff && altitude > max_altitude) {
-            max_altitude = altitude;
+        if (did_liftoff && altitude_agl > max_altitude) {
+            max_altitude = altitude_agl;
         }
         
         // Detect apogee when vertical velocity becomes negative after liftoff
-        if (did_liftoff && !reached_apogee && vertical_velocity < -20.0 && altitude > 200.0) { // Very conservative thresholds
+        if (did_liftoff && !reached_apogee && vertical_velocity < -20.0 && altitude_agl > 200.0) { // Very conservative thresholds
             reached_apogee = true;
             // std::cout << "Apogee reached at " << max_altitude << " ft (current alt: " << altitude << " ft)" << std::endl;
         }
@@ -811,7 +827,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Deploy main chute below 550 feet (per requirements) 
-        if (!single_chute_recovery && reached_apogee && !main_deployed && altitude < 550.0) {
+        if (!single_chute_recovery && reached_apogee && !main_deployed && altitude_agl < 550.0) {
             fdmExec->SetPropertyValue("external_reactions/main_chute/main_open", 1); 
             main_deployed = true;
             // std::cout << "Main chute deployed at " << altitude << " ft" << std::endl;
@@ -848,7 +864,7 @@ int main(int argc, char* argv[]) {
         mass = fdmExec->GetMassBalance()->GetMass() * 32.174; //mass is stored in slugs, convert to lbm
         
         // Calculate 3D position relative to launch point
-        predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude*0.3048, vertical_velocity*0.3048); // convert units
+        predicted_apogee = 3.28084 * predictor.rk4_apogee_predictor(altitude_agl*0.3048, vertical_velocity*0.3048); // convert units
         double current_lat = fdmExec->GetPropagate()->GetLocation().GetLatitudeDeg();
         double current_lon = fdmExec->GetPropagate()->GetLocation().GetLongitudeDeg();
         double current_alt = fdmExec->GetPropagate()->GetAltitudeASL();
@@ -867,7 +883,7 @@ int main(int argc, char* argv[]) {
         << gyro_x << "," << gyro_y << "," << gyro_z << ","
         << yaw_deg << "," << pitch_deg << "," << roll_deg << "," << pressure << "\n";
 
-        if (did_liftoff && reached_apogee && altitude < 5.0) {  // Only terminate after apogee and very low altitude
+        if (did_liftoff && reached_apogee && altitude_agl < 5.0) {  // Only terminate after apogee and very low altitude
             std::cout << "Rocket has reached the ground after flight." << std::endl;
             break;
         }
@@ -906,7 +922,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "Simulation complete." << std::endl;
-    std::cout << "Maximum altitude reached: " << max_altitude << " ft" << std::endl;
+    std::cout << "Maximum altitude reached: " << max_altitude << " ft AGL" << std::endl;
     std::cout << "Time to reach the ground: " << fdmExec->GetSimTime() << " s" << std::endl;
 
     outputFile.close();

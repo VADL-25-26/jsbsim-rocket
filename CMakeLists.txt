@@ -99,6 +99,33 @@ target_compile_definitions(rocket_sim_midscale PRIVATE ASIO_STANDALONE)
 target_link_libraries(rocket_sim_midscale 
 ${JSBSIM_LIBRARY}
 )
+
+# -----------------------------
+# Build Summer Subscale sim
+# -----------------------------
+add_executable(rocket_sim_summer_subscale rocket_sim_summer_subscale_2026.cpp)
+target_include_directories(rocket_sim_summer_subscale PRIVATE
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(rocket_sim_summer_subscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(rocket_sim_summer_subscale
+${JSBSIM_LIBRARY}
+)
+
+# -----------------------------
+# Build Summer Subscale HIL sim
+# -----------------------------
+add_executable(hitl_sim_summer_subscale hitl_sim_summer_subscale_2026.cpp)
+target_include_directories(hitl_sim_summer_subscale PRIVATE
+${JSBSIM_INCLUDE_DIR}
+"/home/altari/asio/asio/include"
+)
+target_compile_definitions(hitl_sim_summer_subscale PRIVATE ASIO_STANDALONE)
+target_link_libraries(hitl_sim_summer_subscale
+${JSBSIM_LIBRARY}
+)
+
 # -----------------------------
 # Copy aircraft config
 # -----------------------------
@@ -109,7 +136,20 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/aircraft
 # Runtime path for shared libraries
 # -----------------------------
 if(UNIX AND NOT APPLE)
-    #set_target_properties(rocket_sim PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-    set_target_properties(rocket_sim_subscale PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
-    set_target_properties(rocket_sim_fullscale PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+    set(JSBSIM_RUNTIME_LIBRARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/jsbsim/build/src")
+    foreach(target_name
+        rocket_sim_subscale
+        rocket_sim_fullscale
+        hitl_sim_fullscale
+        hitl_sim_midscale
+        rocket_sim_midscale
+        rocket_sim_summer_subscale
+        hitl_sim_summer_subscale
+    )
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "${JSBSIM_RUNTIME_LIBRARY_DIR};${JSBSIM_LIBRARY_DIR}"
+            INSTALL_RPATH "${JSBSIM_RUNTIME_LIBRARY_DIR};${JSBSIM_LIBRARY_DIR}"
+            INSTALL_RPATH_USE_LINK_PATH TRUE
+        )
+    endforeach()
 endif()

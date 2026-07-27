@@ -7,7 +7,7 @@ Analyzes CSV trajectory data without requiring external libraries
 import csv
 import math
 
-def analyze_trajectory(csv_file='rocket_trajectory.csv'):
+def analyze_trajectory(csv_file='hitl_midscale_trajectory.csv'):
     """
     Analyze rocket trajectory from CSV data and print statistics
     """

@@ -1,0 +1,503 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="http://jsbsim.sourceforge.net/JSBSim.xsl"?>
+
+<fdm_config name="2026 Summer Subscale" version="2.0" release="ALPHA"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="http://jsbsim.sourceforge.net/JSBSim.xsd">
+
+ <fileheader>
+  <author> VADL HIL </author>
+  <filecreationdate> 20 July 2026 </filecreationdate>
+  <version>0.1</version>
+  <description>2026 summer subscale rocket model built from summer subscale specifications.xlsx.</description>
+ </fileheader>
+
+ <metrics>
+   <!-- Spreadsheet values:
+        length 175 cm, diameter 10.2 cm, CG 98.2 cm, CP 121.159 cm.
+        JSBSim body X is treated as the rocket longitudinal/nose-to-tail axis
+        by the existing simulators in this repo. -->
+   <wingarea unit="FT2">0.08795</wingarea>
+   <wingspan unit="FT">0.33465</wingspan>
+   <wing_incidence unit="DEG">0.00</wing_incidence>
+   <chord unit="FT">5.74147</chord>
+   <htailarea unit="FT2">0.43133</htailarea>
+   <htailarm unit="FT">0.75325</htailarm>
+   <vtailarea unit="FT2">0.43133</vtailarea>
+   <vtailarm unit="FT">0.75325</vtailarm>
+
+   <location name="AERORP" unit="IN">
+     <x>47.70</x>
+     <y>0.00</y>
+     <z>0.00</z>
+   </location>
+
+   <location name="EYEPOINT" unit="FT">
+     <x>1.17</x>
+     <y>-1.50</y>
+     <z>3.75</z>
+   </location>
+
+   <location name="VRP" unit="FT">
+     <x>0.0</x>
+     <y>0.0</y>
+     <z>0.0</z>
+   </location>
+
+   <!-- RACS fins from OpenRocket:
+        4 fins, position 121 cm from nose tip, thickness 0.483 cm,
+        points (cm): (0,0), (2.54,10.2), (7.62,10.2), (10.2,0).
+        Component mass is overridden to 0 g in OpenRocket, so geometry is
+        aerodynamic only here. A fixed 0.125 deg cant is modeled as a
+        physical roll moment source; commanded fin positions remain
+        available for later controller tests. -->
+   <property value="4">metrics/racs-fin-count</property>
+   <property value="0.00218166156">metrics/racs-fin-cant-rad</property>
+   <property value="0.03">metrics/racs-roll-effectiveness</property>
+   <property value="0.08388">metrics/racs-single-fin-area</property>
+   <property value="0.33552">metrics/acsarea</property>
+   <property value="0.75325">metrics/acsarm</property>
+   <property value="0.16732">metrics/rocket-radius-ft</property>
+   <property value="47.64">metrics/racs-station-in</property>
+   <property value="0.19016">metrics/racs-thickness-in</property>
+   <property value="0.33465">metrics/racs-root-chord-ft</property>
+   <property value="0.16667">metrics/racs-tip-chord-ft</property>
+   <property value="0.33465">metrics/racs-span-ft</property>
+ </metrics>
+
+ <mass_balance>
+   <!-- The spreadsheet labels launch Ixx as 1.313 kg*m^2 and Iyy/Izz as
+        0.007 kg*m^2. For JSBSim aircraft body axes, Ixx is roll inertia about
+        the rocket centerline, so the physically consistent mapping is:
+        roll Ixx = 0.007, pitch/yaw Iyy/Izz = 1.313. -->
+   <ixx unit="KG*M2">0.007</ixx>
+   <iyy unit="KG*M2">1.313</iyy>
+   <izz unit="KG*M2">1.313</izz>
+   <emptywt unit="LBS">13.800</emptywt>
+
+   <location name="CG" unit="IN">
+     <x>38.66</x>
+     <y>0.00</y>
+     <z>0.00</z>
+   </location>
+
+   <pointmass name="Motor Casing">
+    <description>AeroTech I600R empty motor mass from spreadsheet.</description>
+    <weight unit="LBS">0.646</weight>
+    <location name="POINTMASS" unit="IN">
+     <x>64.0</x>
+     <y>0.00</y>
+     <z>0.00</z>
+    </location>
+   </pointmass>
+ </mass_balance>
+
+ <propulsion>
+    <engine file="aerotech_i600r_engine">
+        <feed>0</feed>
+        <running>0</running>
+        <starter>0</starter>
+        <thruster file="i600r_nozzle">
+            <location unit="IN">
+                <x>68.90</x>
+                <y>0.0</y>
+                <z>0.0</z>
+            </location>
+            <orient>
+                <pitch unit="DEG">0.0</pitch>
+                <yaw unit="DEG">0.0</yaw>
+            </orient>
+        </thruster>
+    </engine>
+
+    <tank type="FUEL">
+        <fuel_type>FUEL</fuel_type>
+        <location unit="IN">
+            <x>64.0</x>
+            <y>0.0</y>
+            <z>0.0</z>
+        </location>
+        <capacity unit="LBS">0.714</capacity>
+        <contents unit="LBS">0.714</contents>
+    </tank>
+ </propulsion>
+
+ <system file="Conventional Controls.xml"/>
+ <system file="Landing Gear.xml"/>
+ <!-- <system file="Rescue Chute (Ballistic Recovery System).xml"/> -->
+
+ <flight_control name="FCS: 2026 Summer Subscale">
+   <channel name="Landing Gear">
+    <switch name="fcs/gear-no-wow">
+      <default value="1"/>
+    </switch>
+  </channel>
+ </flight_control>
+
+ <aerodynamics>
+  <property value="0">aero/ACSangle</property>
+  <property value="0">aero/RACS_roll_cmd_rad</property>
+  <property value="1">aero/RACS_cant_active</property>
+  <property value="0">fcs/racs_fin_1_pos_rad</property>
+  <property value="0">fcs/racs_fin_2_pos_rad</property>
+  <property value="0">fcs/racs_fin_3_pos_rad</property>
+  <property value="0">fcs/racs_fin_4_pos_rad</property>
+
+  <axis name="LIFT">
+    <function name="aero/force/Lift_alpha">
+      <description>Normal force from angle of attack; conservative subscale estimate.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <property>aero/alpha-rad</property>
+        <value>2.4</value>
+      </product>
+    </function>
+  </axis>
+
+  <axis name="DRAG">
+    <function name="aero/force/Drag_minimum">
+      <description>Body drag term; with the 0.0302 fin term, zero-angle ascent Cd is 0.56.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.5298</value>
+      </product>
+    </function>
+
+    <function name="aero/force/Drag_alpha">
+      <description>Extra drag at nonzero angle of attack.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <table>
+          <independentVar lookup="row">aero/alpha-rad</independentVar>
+          <tableData>
+           -1.57 0.1500
+            0.00 0.0000
+            1.57 0.1500
+          </tableData>
+        </table>
+      </product>
+    </function>
+
+    <function name="aero/force/Drag_beta">
+      <description>Extra drag from sideslip.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <table>
+          <independentVar lookup="row">aero/beta-rad</independentVar>
+          <tableData>
+           -1.57 0.0500
+           -0.26 0.0050
+            0.00 0.0000
+            0.26 0.0050
+            1.57 0.0500
+          </tableData>
+        </table>
+      </product>
+    </function>
+
+    <function name="aero/force/Drag_fins">
+      <description>Main fin parasite drag.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.0302</value>
+      </product>
+    </function>
+
+    <function name="aero/force/ACS_drag">
+      <description>Drag due to deployed ACS fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/acsarea</property>
+        <value>1.28</value>
+        <sin>
+          <property>aero/ACSangle</property>
+        </sin>
+      </product>
+    </function>
+  </axis>
+
+  <axis name="SIDE">
+    <function name="aero/force/Side_beta">
+      <description>Side force from sideslip; conservative subscale estimate.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <property>aero/beta-rad</property>
+        <value>2.4</value>
+      </product>
+    </function>
+  </axis>
+
+  <axis name="PITCH">
+    <function name="aero/moment/Pitch_alpha">
+      <description>Pitch restoring moment from fin stability.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.75325</value>
+        <property>aero/alpha-rad</property>
+        <value>-2.4</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Pitch_damp">
+      <description>Pitch damping from fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.75325</value>
+        <property>aero/ci2vel</property>
+        <property>velocities/q-aero-rad_sec</property>
+        <value>-0.5</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Pitch_chute_damp">
+      <description>Recovery chute pitch-rate damping after deployment.</description>
+      <product>
+        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>velocities/q-aero-rad_sec</property>
+        <value>-5.0</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Pitch_ACS">
+      <description>Pitch restoring contribution from ACS fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/acsarea</property>
+        <property>metrics/acsarm</property>
+        <property>aero/alpha-rad</property>
+        <value>-1.0</value>
+      </product>
+    </function>
+  </axis>
+
+  <axis name="ROLL">
+    <function name="aero/moment/Roll_damp">
+      <description>Roll damping around rocket centerline.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>aero/bi2vel</property>
+        <property>velocities/p-aero-rad_sec</property>
+        <value>-0.25</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_chute_damp">
+      <description>Recovery chute roll-rate damping after deployment.</description>
+      <product>
+        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>velocities/p-aero-rad_sec</property>
+        <value>-0.03</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_ACS">
+      <description>Roll damping from ACS fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/acsarea</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>aero/bi2vel</property>
+        <property>velocities/p-aero-rad_sec</property>
+        <value>-0.2</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_RACS_fixed_cant">
+      <description>Fixed roll torque from the 2 deg same-handed RACS fin cant.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/acsarea</property>
+        <property>metrics/rocket-radius-ft</property>
+        <sin>
+          <property>metrics/racs-fin-cant-rad</property>
+        </sin>
+        <property>metrics/racs-roll-effectiveness</property>
+        <property>aero/RACS_cant_active</property>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_RACS_fin_1">
+      <description>Active roll torque from RACS fin 1. Positive fin angle gives positive roll moment.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/racs-single-fin-area</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>metrics/racs-roll-effectiveness</property>
+        <sin>
+          <property>fcs/racs_fin_1_pos_rad</property>
+        </sin>
+        <value>1.0</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_RACS_fin_2">
+      <description>Active roll torque from RACS fin 2. Same handed rotation as fin 1.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/racs-single-fin-area</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>metrics/racs-roll-effectiveness</property>
+        <sin>
+          <property>fcs/racs_fin_2_pos_rad</property>
+        </sin>
+        <value>1.0</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_RACS_fin_3">
+      <description>Active roll torque from RACS fin 3. Same handed rotation as fin 1.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/racs-single-fin-area</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>metrics/racs-roll-effectiveness</property>
+        <sin>
+          <property>fcs/racs_fin_3_pos_rad</property>
+        </sin>
+        <value>1.0</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Roll_RACS_fin_4">
+      <description>Active roll torque from RACS fin 4. Same handed rotation as fin 1.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/racs-single-fin-area</property>
+        <property>metrics/rocket-radius-ft</property>
+        <property>metrics/racs-roll-effectiveness</property>
+        <sin>
+          <property>fcs/racs_fin_4_pos_rad</property>
+        </sin>
+        <value>1.0</value>
+      </product>
+    </function>
+
+  </axis>
+
+  <axis name="YAW">
+    <function name="aero/moment/Yaw_beta">
+      <description>Yaw restoring moment from fin stability.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.75325</value>
+        <property>aero/beta-rad</property>
+        <value>-2.4</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Yaw_damp">
+      <description>Yaw damping from fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/Sw-sqft</property>
+        <value>0.75325</value>
+        <property>aero/bi2vel</property>
+        <property>velocities/r-aero-rad_sec</property>
+        <value>-0.5</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Yaw_chute_damp">
+      <description>Recovery chute yaw-rate damping after deployment.</description>
+      <product>
+        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>velocities/r-aero-rad_sec</property>
+        <value>-5.0</value>
+      </product>
+    </function>
+
+    <function name="aero/moment/Yaw_ACS">
+      <description>Yaw restoring contribution from ACS fins.</description>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>metrics/acsarea</property>
+        <property>metrics/acsarm</property>
+        <property>aero/beta-rad</property>
+        <value>-1.0</value>
+      </product>
+    </function>
+  </axis>
+ </aerodynamics>
+
+ <external_reactions>
+  <!-- Single subscale recovery chute. Keep the historical drogue_chute
+       property name because the simulator opens this at apogee. -->
+  <property value="12.770">external_reactions/drogue_chute/drag_area</property>
+  <property value="0">external_reactions/drogue_chute/drogue_open</property>
+
+  <property value="0">external_reactions/rail_friction/on</property>
+  <property value="0">external_reactions/rail_friction/force_lbs</property>
+
+  <force name="rail_friction" frame="BODY">
+    <function>
+      <product>
+        <property>external_reactions/rail_friction/force_lbs</property>
+        <table>
+          <independentVar lookup="row">external_reactions/rail_friction/on</independentVar>
+          <tableData>
+            0 0
+            1 1
+          </tableData>
+        </table>
+      </product>
+    </function>
+    <location unit="IN">
+      <x>38.66</x><y>0.0</y><z>0.0</z>
+    </location>
+    <direction>
+      <x>-1</x><y>0</y><z>0</z>
+    </direction>
+  </force>
+
+  <force name="drogue_chute" frame="WIND">
+    <function>
+      <product>
+        <property>aero/qbar-psf</property>
+        <property>external_reactions/drogue_chute/drag_area</property>
+        <table>
+          <independentVar lookup="row">external_reactions/drogue_chute/drogue_open</independentVar>
+          <tableData>
+            0 0
+            1 2.2
+          </tableData>
+        </table>
+      </product>
+    </function>
+    <location unit="FT">
+      <x>0</x><y>0</y><z>0</z>
+    </location>
+    <direction>
+      <x>-1</x><y>0</y><z>0</z>
+    </direction>
+  </force>
+
+ </external_reactions>
+
+ <ground_reactions>
+    <contact type="BOGEY" name="LANDING_CONTACT">
+        <location unit="IN">
+            <x>68.90</x>
+            <y>0.0</y>
+            <z>0.25</z>
+        </location>
+        <static_friction>0.8</static_friction>
+        <dynamic_friction>0.7</dynamic_friction>
+        <rolling_friction>0.01</rolling_friction>
+        <spring_coeff unit="LBS/FT">0.01</spring_coeff>
+        <damping_coeff unit="LBS/FT/SEC">0.01</damping_coeff>
+        <max_steer unit="DEG">0.0</max_steer>
+        <brake_group>NONE</brake_group>
+    </contact>
+ </ground_reactions>
+</fdm_config>
