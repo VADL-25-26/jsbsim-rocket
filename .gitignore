@@ -33,3 +33,7 @@
 build
 
 env/
+
+# Python
+venv/
+.venv/
