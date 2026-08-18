@@ -1,17 +1,9 @@
-# simple build script for the project
-# run with `sh build.sh`
+#!/usr/bin/env bash
+set -euo pipefail
 
-# remove the old build
-rm -rf build
+# Build the program in src/ by default. Pass another CMake target name to build
+# one of the existing simulations instead.
+target="${1:-rocket_main}"
 
-# create the build directory
-mkdir build
-
-# go into the build directory
-cd build
-
-# configure the build
-cmake ..
-
-# build the project
-make
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --target "${target}" --parallel

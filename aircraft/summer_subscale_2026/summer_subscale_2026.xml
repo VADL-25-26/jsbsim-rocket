@@ -260,7 +260,7 @@
     <function name="aero/moment/Pitch_chute_damp">
       <description>Recovery chute pitch-rate damping after deployment.</description>
       <product>
-        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>external_reactions/main_chute/main_open</property>
         <property>velocities/q-aero-rad_sec</property>
         <value>-5.0</value>
       </product>
@@ -294,7 +294,7 @@
     <function name="aero/moment/Roll_chute_damp">
       <description>Recovery chute roll-rate damping after deployment.</description>
       <product>
-        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>external_reactions/main_chute/main_open</property>
         <property>velocities/p-aero-rad_sec</property>
         <value>-0.03</value>
       </product>
@@ -411,7 +411,7 @@
     <function name="aero/moment/Yaw_chute_damp">
       <description>Recovery chute yaw-rate damping after deployment.</description>
       <product>
-        <property>external_reactions/drogue_chute/drogue_open</property>
+        <property>external_reactions/main_chute/main_open</property>
         <property>velocities/r-aero-rad_sec</property>
         <value>-5.0</value>
       </product>
@@ -431,10 +431,9 @@
  </aerodynamics>
 
  <external_reactions>
-  <!-- Single subscale recovery chute. Keep the historical drogue_chute
-       property name because the simulator opens this at apogee. -->
-  <property value="12.770">external_reactions/drogue_chute/drag_area</property>
-  <property value="0">external_reactions/drogue_chute/drogue_open</property>
+  <!-- Single subscale recovery chute. -->
+  <property value="12.770">external_reactions/main_chute/drag_area</property>
+  <property value="0">external_reactions/main_chute/main_open</property>
 
   <property value="0">external_reactions/rail_friction/on</property>
   <property value="0">external_reactions/rail_friction/force_lbs</property>
@@ -460,13 +459,13 @@
     </direction>
   </force>
 
-  <force name="drogue_chute" frame="WIND">
+  <force name="main_chute" frame="WIND">
     <function>
       <product>
         <property>aero/qbar-psf</property>
-        <property>external_reactions/drogue_chute/drag_area</property>
+        <property>external_reactions/main_chute/drag_area</property>
         <table>
-          <independentVar lookup="row">external_reactions/drogue_chute/drogue_open</independentVar>
+          <independentVar lookup="row">external_reactions/main_chute/main_open</independentVar>
           <tableData>
             0 0
             1 2.2

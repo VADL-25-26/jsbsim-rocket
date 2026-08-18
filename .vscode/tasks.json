@@ -1,0 +1,46 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: Configure",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build",
+                "-DCMAKE_BUILD_TYPE=Debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake: Build rocket_main",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--target",
+                "rocket_main",
+                "--parallel"
+            ],
+            "dependsOn": "CMake: Configure",
+            "problemMatcher": "$gcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run rocket_main",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/rocket_main",
+            "options": {
+                "cwd": "${workspaceFolder}/build"
+            },
+            "dependsOn": "CMake: Build rocket_main",
+            "problemMatcher": []
+        }
+    ]
+}

@@ -46,31 +46,50 @@ This project simulates a small suborbital amateur rocket using JSBSim flight dyn
 
 ## Compilation
 
+To configure the project and build the program in `src/main.cpp`:
+
 ```bash
 ./build.sh
 ```
 
+That is shorthand for:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --target rocket_main --parallel
+```
+
+CMake configuration only needs to be repeated when `CMakeLists.txt` changes.
+After editing C++ files, the second command is enough; CMake recompiles only
+the files that changed.
+
+Compiler errors are expected while developing. Start with the first error in
+the output, fix it, then run the same build command again. Later errors are
+often side effects of the first one.
+
+You can build an existing simulation by passing its target name:
+
+```bash
+./build.sh rocket_sim_summer_subscale
+```
+
+In VS Code, run the default build task with `Ctrl+Shift+B` (macOS:
+`Cmd+Shift+B`). The included tasks also provide `CMake: Configure`,
+`CMake: Build rocket_main`, and `Run rocket_main`.
+
 ## Running the Simulation
 
-Before you run the simulation, make sure you add the jsbsim path to your terminal so that the object file that was compiled can run
+Once `rocket_main` builds successfully, run it from the build directory so it
+can find the copied `aircraft/` configuration:
 
 ```bash
-nano ~/.bashrc
+cd build
+./rocket_main
 ```
 
-Add this to the end of the bashrc profile
-```bash
-export LD_LIBRARY_PATH=/home/<user>/jsbsim-rocket/external/jsbsim/build/src:$LD_LIBRARY_PATH
-```
-
-Apply the changes to the shell
-```bash
-source ~/.bashrc
-```
-To run the simulation
-```bash
-./build/rocket_sim
-```
+Press `Ctrl+C` to stop it if the program does not yet have its own termination
+condition. Because this repository links the included static JSBSim library,
+you do not need to edit `LD_LIBRARY_PATH` for this target.
 
 The simulation will:
 1. Initialize the rocket on the launch pad in vertical orientation

@@ -1,16 +1,14 @@
 {
     "configurations": [
         {
-            "name": "Linux",
+            "name": "CMake",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/home/altari/asio/asio/include/"
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/legacy_files"
             ],
-            "defines": ["ASIO_STANDALONE"],
-            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
-            "cppStandard": "gnu++17",
-            "intelliSenseMode": "linux-gcc-x64",
+            "cppStandard": "c++17",
             "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
